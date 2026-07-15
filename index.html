@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Spark Mentor — uma trilha prática de Apache Spark, PySpark e Spark SQL para quem já conhece SQL." />
+    <meta name="theme-color" content="#0b1f33" />
+    <title>Spark Mentor</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar" aria-label="Navegação principal">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 42 42" role="img">
+              <path d="M8 30.5c6.2-1.8 8.9-5.4 10.1-10.6 3.4 3 7.4 4.1 13.9 3.2-4.6 2.3-7.4 5.3-8.3 10.4-3.9-2.6-8.8-3.7-15.7-3Z" />
+              <path d="M11 18.2c4.5-1.4 6.5-4 7.3-7.8 2.6 2.1 5.5 3 10.1 2.3-3.3 1.7-5.4 3.9-6 7.7-2.9-2-6.4-2.7-11.4-2.2Z" />
+            </svg>
+          </div>
+          <div>
+            <strong>Spark Mentor</strong>
+            <span>Do SQL ao distribuído</span>
+          </div>
+        </div>
+
+        <nav class="nav-list">
+          <button class="nav-item active" data-view="today" aria-current="page">
+            <span class="nav-icon" aria-hidden="true">⌂</span>
+            <span>Estudo de hoje</span>
+          </button>
+          <button class="nav-item" data-view="trail">
+            <span class="nav-icon" aria-hidden="true">▦</span>
+            <span>Trilha de 4 semanas</span>
+          </button>
+          <button class="nav-item" data-view="lab">
+            <span class="nav-icon" aria-hidden="true">⌘</span>
+            <span>SQL ↔ PySpark</span>
+          </button>
+          <button class="nav-item" data-view="tutor">
+            <span class="nav-icon" aria-hidden="true">✦</span>
+            <span>Tutor Spark</span>
+          </button>
+          <button class="nav-item" data-view="glossary">
+            <span class="nav-icon" aria-hidden="true">Aa</span>
+            <span>Glossário</span>
+          </button>
+          <button class="nav-item" data-view="progress">
+            <span class="nav-icon" aria-hidden="true">↗</span>
+            <span>Meu progresso</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="mini-progress">
+            <div class="mini-progress-copy">
+              <span>Progresso geral</span>
+              <strong id="sidebar-progress-label">0%</strong>
+            </div>
+            <div class="progress-track" aria-hidden="true">
+              <div class="progress-fill" id="sidebar-progress-bar"></div>
+            </div>
+            <small id="sidebar-progress-detail">0 de 20 aulas</small>
+          </div>
+          <button class="icon-button sidebar-collapse" id="sidebar-collapse" aria-label="Recolher menu" title="Recolher menu">‹</button>
+        </div>
+      </aside>
+
+      <main class="main" id="main-content">
+        <header class="topbar">
+          <button class="icon-button menu-button" id="menu-button" aria-label="Abrir menu">☰</button>
+          <div class="topbar-title">
+            <span id="view-kicker">TRILHA GUIADA</span>
+            <h1 id="view-title">Estudo de hoje</h1>
+          </div>
+          <div class="topbar-actions">
+            <a class="ai-pill" href="https://github.com/jvvtr/spark-mentor/blob/main/AI_DISCLOSURE.md" target="_blank" rel="noreferrer" title="Conheça a transparência sobre o uso de IA">
+              <span aria-hidden="true">✦</span>
+              <span>100% feito com IA</span>
+            </a>
+            <div class="stat-pill" title="Sequência de dias estudados">
+              <span aria-hidden="true">🔥</span>
+              <strong id="streak-value">0</strong>
+              <span class="stat-label">dias</span>
+            </div>
+            <div class="stat-pill" title="Pontos conquistados">
+              <span aria-hidden="true">✦</span>
+              <strong id="xp-value">0</strong>
+              <span class="stat-label">XP</span>
+            </div>
+            <button class="avatar" id="profile-button" aria-label="Editar seu nome" title="Editar seu nome">SM</button>
+          </div>
+        </header>
+
+        <div class="view-container" id="view-container"></div>
+        <footer class="project-footer">
+          <div>
+            <strong>Projeto educacional 100% desenvolvido com IA</strong>
+            <span>Criado para apoiar iniciantes · Conteúdo inicial ainda não revisado por especialista independente.</span>
+          </div>
+          <p>O Tutor Spark usa respostas locais predefinidas; nenhuma pergunta é enviada a uma IA online. Projeto independente e sem afiliação oficial.</p>
+        </footer>
+      </main>
+    </div>
+
+    <div class="mobile-overlay" id="mobile-overlay" hidden></div>
+
+    <div class="modal-backdrop" id="profile-modal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="profile-title">
+        <button class="modal-close" data-close-modal aria-label="Fechar">×</button>
+        <span class="eyebrow">SEU ESPAÇO</span>
+        <h2 id="profile-title">Como posso chamar você?</h2>
+        <p>Seu nome aparece apenas neste navegador.</p>
+        <label class="field-label" for="profile-name">Nome</label>
+        <input class="text-input" id="profile-name" maxlength="32" placeholder="Ex.: João" autocomplete="name" />
+        <button class="primary-button full-width" id="save-profile">Salvar e começar</button>
+      </section>
+    </div>
+
+    <div class="toast-region" id="toast-region" aria-live="assertive" aria-atomic="true"></div>
+
+    <script src="curriculum.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

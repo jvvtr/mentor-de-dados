@@ -1,0 +1,45 @@
+name: Correção de conteúdo
+description: Reporte uma possível imprecisão em uma aula, exemplo, exercício ou quiz.
+title: "[Conteúdo]: "
+labels:
+  - conteúdo
+body:
+  - type: markdown
+    attributes:
+      value: Obrigado por ajudar a tornar o material mais confiável para iniciantes.
+  - type: input
+    id: location
+    attributes:
+      label: Aula ou seção
+      description: Informe onde o conteúdo aparece.
+      placeholder: "Ex.: Aula 12 — Shuffle"
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Conteúdo atual
+      description: Copie somente o trecho necessário.
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: Correção sugerida
+      description: Explique o que deveria mudar e por quê.
+    validations:
+      required: true
+  - type: input
+    id: reference
+    attributes:
+      label: Referência oficial
+      description: Inclua um link para documentação primária, quando possível.
+    validations:
+      required: true
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmação
+      options:
+        - label: Verifiquei que a issue não contém dados pessoais, tokens ou informações sensíveis.
+          required: true
