@@ -1,36 +1,52 @@
 # Transparência sobre o uso de inteligência artificial
 
-O Spark Mentor é um projeto educacional **100% desenvolvido com inteligência artificial**.
+O Mentor de Dados é um projeto educacional **100% desenvolvido com inteligência artificial**.
 
-## O que foi produzido com IA
+## O que isso significa
 
-Agentes de IA produziram:
+A necessidade, o público e o objetivo foram definidos por uma pessoa: criar uma ferramenta gratuita que ajude iniciantes a entender Apache Spark, PySpark e Spark SQL com uma rotina de uma hora por dia.
+
+A partir dessa direção, agentes de IA produziram:
 
 - a arquitetura e o código do aplicativo;
-- o design e os textos da interface;
+- o design, a identidade própria e os textos da interface;
 - a estrutura da trilha de estudos;
 - as explicações, analogias e exemplos;
-- os exercícios, dicas, soluções e quizzes;
+- os exercícios, critérios de verificação, dicas, soluções e quizzes;
 - o glossário e as respostas do tutor local;
+- o kit de início para PySpark local;
 - a documentação e os testes do projeto.
 
-O projeto nasceu de uma necessidade e de objetivos definidos por uma pessoa: criar uma ferramenta acessível para ajudar iniciantes a entender Apache Spark, PySpark e Spark SQL estudando uma hora por dia.
+Os ativos oficiais do Apache Spark incluídos em `assets/` não foram gerados pela IA. Eles foram obtidos do site oficial e são atribuídos em [assets/ATTRIBUTION.md](assets/ATTRIBUTION.md).
 
-## Por que informar isso
+## Limites do conteúdo gerado
 
-Transparência permite que estudantes e colaboradores avaliem o material com o contexto correto. Sistemas de IA podem gerar conteúdo convincente e ainda assim cometer erros, omitir exceções ou simplificar demais um conceito.
+Sistemas de IA podem produzir conteúdo convincente e ainda assim cometer erros, omitir exceções ou simplificar demais um conceito. Por isso:
 
-Por isso:
+- trate o material como apoio introdutório, não como documentação oficial;
+- execute os exemplos no Databricks Free Edition ou no PySpark local;
+- confira a versão e as limitações do ambiente utilizado;
+- consulte as fontes primárias em [REFERENCES.md](REFERENCES.md) antes de decisões de produção;
+- reporte correções fundamentadas para que o material possa melhorar.
 
-- o material deve ser tratado como apoio introdutório;
-- exemplos importantes devem ser executados e verificados;
-- decisões de produção devem consultar documentação oficial;
-- correções da comunidade são incentivadas.
+## O editor não é um compilador
 
-## Privacidade
+O laboratório no navegador armazena um rascunho e faz uma **verificação estrutural por padrões de texto**. Essa verificação não interpreta toda a sintaxe, não compila, não executa Apache Spark, não processa dados e não confirma resultados.
 
-O aplicativo não envia perguntas ou progresso para um modelo de IA. O tutor incluído no app funciona offline com respostas previamente definidas. Nome, respostas, anotações e progresso ficam apenas no `localStorage` do navegador.
+Essa limitação é comunicada explicitamente na interface. Um runtime Python no navegador não seria equivalente ao runtime real do Apache Spark, que envolve JVM, planejamento de consultas e execução local ou distribuída. A execução prática acontece em um ambiente externo verdadeiro.
 
-## Independência
+## Tutor local e privacidade
 
-Este projeto não é oficial e não possui afiliação com Apache Software Foundation, Databricks ou Microsoft. Os nomes das tecnologias são utilizados apenas para fins educacionais e descritivos.
+Apesar de o projeto ter sido criado com IA, o app publicado **não consulta um modelo de IA**. O tutor é offline e responde a partir de conteúdo previamente definido.
+
+Nome, respostas, rascunhos, anotações e progresso ficam no `localStorage` do navegador. O aplicativo não possui backend, cadastro ou telemetria e não envia esses dados ao GitHub, a agentes de IA ou a terceiros. Links externos, ao serem abertos, passam a seguir as políticas do site de destino.
+
+## Responsabilidade do estudante
+
+O projeto não substitui formação oficial, revisão de um especialista ou testes no ambiente de destino. Código copiado do app deve ser revisado antes de uso com dados reais, especialmente em cenários de segurança, privacidade, custo ou produção.
+
+## Independência e marcas
+
+Este projeto é independente e não possui afiliação, patrocínio ou endosso da Apache Software Foundation, Databricks ou Microsoft.
+
+Apache Spark, Spark e o logotipo Apache Spark são marcas da Apache Software Foundation. Databricks, Power BI e demais nomes e marcas pertencem aos seus respectivos titulares. Os nomes são usados apenas de forma educacional e descritiva para identificar as tecnologias abordadas.

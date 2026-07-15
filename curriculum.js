@@ -549,7 +549,7 @@ ranking = clientes_metricas.withColumn(
       title: "Partitions e paralelismo",
       subtitle: "Como o Spark divide os dados",
       objective: "Entender partições, tasks e quando usar repartition ou coalesce.",
-      intro: "Uma partição é uma fração dos dados processada por uma task. A quantidade e a distribuição das partições influenciam o paralelismo.",
+      intro: "Uma partição é uma fração dos dados processada por uma task. A quantidade e a distribuição das partições influenciam o paralelismo. No Databricks Free Edition, observe as partições somente com APIs de DataFrame, pois APIs de RDD não são suportadas pelo compute serverless.",
       analogy: "Imagine dividir uma tabela enorme em lotes. Executors trabalham em lotes diferentes ao mesmo tempo, desde que existam recursos disponíveis.",
       concepts: [
         { title: "Partition", text: "Unidade física/lógica de dados que uma task processa por vez." },
@@ -561,23 +561,52 @@ ranking = clientes_metricas.withColumn(
 SELECT estado, SUM(valor)
 FROM vendas
 GROUP BY estado;`,
-      pyspark: `atual = vendas.rdd.getNumPartitions()
-print(f"Partições atuais: {atual}")
+      pyspark: `from pyspark.sql import functions as F
 
 por_estado = vendas.repartition(8, "estado")
-print(por_estado.rdd.getNumPartitions())
+
+distribuicao = (
+    por_estado
+    .select(F.spark_partition_id().alias("particao"))
+    .groupBy("particao")
+    .count()
+    .orderBy("particao")
+)
+
+distribuicao.show()  # mostra somente partições com linhas
+por_estado.explain("formatted")  # procure hashpartitioning(estado, 8)
 
 saida_menor = por_estado.coalesce(2)`,
-      exercise: "Verifique o número de partições de pedidos, redistribua para 4 partições por status e verifique novamente.",
-      starter: `print(pedidos.rdd.getNumPartitions())
+      exercise: "Redistribua pedidos para 4 partições por status, liste os IDs das partições que receberam linhas e confirme o reparticionamento no plano.",
+      starter: `from pyspark.sql import functions as F
 
 pedidos_4 = pedidos.____(____, ____)
-print(____)`,
-      hint: "Use repartition(4, \"status\") e getNumPartitions().",
-      solution: `print(pedidos.rdd.getNumPartitions())
+
+distribuicao = (
+    pedidos_4
+    .select(F.____().alias("particao"))
+    .groupBy("particao")
+    .count()
+    .orderBy("particao")
+)
+
+distribuicao.show()
+pedidos_4.____("formatted")`,
+      hint: "Use repartition(4, \"status\"), spark_partition_id() e explain(\"formatted\"). A tabela de distribuição mostra apenas partições não vazias.",
+      solution: `from pyspark.sql import functions as F
 
 pedidos_4 = pedidos.repartition(4, "status")
-print(pedidos_4.rdd.getNumPartitions())`,
+
+distribuicao = (
+    pedidos_4
+    .select(F.spark_partition_id().alias("particao"))
+    .groupBy("particao")
+    .count()
+    .orderBy("particao")
+)
+
+distribuicao.show()
+pedidos_4.explain("formatted")`,
       quiz: {
         question: "O que uma partição representa durante o processamento?",
         options: ["Uma máquina inteira", "Uma fração dos dados processada por uma task", "Uma tabela obrigatoriamente pequena", "Um usuário do Databricks"],
@@ -636,22 +665,25 @@ otimizado.explain()`,
     {
       id: 13,
       week: 3,
-      title: "Cache com propósito",
-      subtitle: "Reutilizar sem desperdiçar memória",
-      objective: "Decidir quando cache/persist ajuda e liberar dados com unpersist.",
-      intro: "Cache evita recomputar um DataFrame reutilizado, mas ocupa memória e só é materializado quando uma action ocorre.",
+      title: "Cache com propósito (laboratório local)",
+      subtitle: "Prática opcional fora do Free Edition",
+      objective: "Compreender quando cache/persist ajuda e praticar cache/unpersist no PySpark local.",
+      intro: "Esta prática é exclusiva do ambiente PySpark local fornecido no starter. No Databricks Free Edition, leia os conceitos e responda ao quiz sem executar os comandos de cache. Cache evita recomputar um DataFrame reutilizado, mas ocupa memória e só é materializado quando uma action ocorre.",
       analogy: "É como manter uma consulta intermediária pronta para vários visuais. Faz sentido se ela for cara e reutilizada, não para cada etapa do fluxo.",
       concepts: [
+        { title: "Ambiente desta aula", text: "Execute o exemplo apenas no PySpark local; no Free Edition, trate-o como estudo conceitual." },
         { title: "cache", text: "Marca o DataFrame para persistência usando o nível padrão." },
         { title: "persist", text: "Permite escolher níveis de armazenamento, como memória e disco." },
         { title: "Materialização", text: "Uma action precisa executar o plano para preencher o cache." },
         { title: "unpersist", text: "Libera os blocos quando a reutilização termina." }
       ],
-      sql: `-- Conceito: uma view temporária não significa cache automático
+      sql: `-- LABORATÓRIO LOCAL: não execute estes comandos no Free Edition
+-- Conceito: uma view temporária não significa cache automático
 CACHE TABLE vendas_aprovadas;
 SELECT COUNT(*) FROM vendas_aprovadas;
 UNCACHE TABLE vendas_aprovadas;`,
-      pyspark: `aprovadas = (
+      pyspark: `# LABORATÓRIO LOCAL: execute com o starter do Mentor de Dados
+aprovadas = (
     vendas
     .filter(F.col("status") == "APROVADO")
     .cache()
@@ -661,14 +693,14 @@ aprovadas.count()  # materializa
 aprovadas.groupBy("estado").sum("valor").show()
 aprovadas.groupBy("categoria").sum("valor").show()
 aprovadas.unpersist()`,
-      exercise: "Marque uma agregação cara para cache, materialize-a com count, use-a duas vezes e depois libere-a.",
+      exercise: "Somente no PySpark local: marque uma agregação cara para cache, materialize-a com count, use-a duas vezes e depois libere-a.",
       starter: `base = transformacao_cara.____()
 base.____()  # materializa
 
 # duas análises
 
 base.____()`,
-      hint: "Os métodos são cache(), count() e unpersist().",
+      hint: "Execute no ambiente local do starter. Os métodos são cache(), count() e unpersist().",
       solution: `base = transformacao_cara.cache()
 base.count()
 
@@ -899,58 +931,63 @@ clientes_atuais = (
     {
       id: 18,
       week: 4,
-      title: "Gravar Parquet e Delta",
-      subtitle: "Saídas confiáveis no Databricks",
-      objective: "Escolher formato, modo de gravação e particionamento físico adequados.",
-      intro: "No Databricks, Delta adiciona transações e histórico sobre arquivos Parquet. O formato e o layout da saída afetam confiabilidade e leitura.",
+      title: "Gravar tabelas Delta gerenciadas",
+      subtitle: "Saídas confiáveis no Databricks Free Edition",
+      objective: "Escolher modo de gravação e particionamento ao salvar uma tabela Delta gerenciada.",
+      intro: "No Databricks, Delta adiciona transações e histórico sobre arquivos Parquet. No Free Edition, prefira tabelas gerenciadas pelo Unity Catalog em vez de caminhos soltos como /gold ou /silver.",
       analogy: "Parquet organiza os arquivos para análise; Delta acrescenta um diário transacional que controla versões e mudanças.",
       concepts: [
         { title: "append / overwrite", text: "Append acrescenta dados; overwrite substitui o destino ou partições conforme a configuração." },
         { title: "Delta Lake", text: "Adiciona log transacional, ACID, schema enforcement, merge e time travel." },
-        { title: "partitionBy na escrita", text: "Cria diretórios físicos por valores, útil para filtros frequentes e baixa cardinalidade." },
+        { title: "Tabela gerenciada", text: "O catálogo controla o nome e o local de armazenamento; saveAsTable grava sem exigir um caminho manual." },
+        { title: "partitionBy na escrita", text: "Organiza fisicamente a tabela por valores, útil para filtros frequentes e colunas de baixa cardinalidade." },
         { title: "Small files", text: "Arquivos pequenos demais aumentam metadados e podem prejudicar leituras." }
       ],
-      sql: `CREATE OR REPLACE TABLE gold.vendas_mensais
+      sql: `CREATE SCHEMA IF NOT EXISTS spark_mentor;
+
+CREATE OR REPLACE TABLE spark_mentor.vendas_mensais
 USING DELTA
+PARTITIONED BY (ano_mes)
 AS SELECT * FROM vw_vendas_mensais;
 
-SELECT * FROM gold.vendas_mensais
+SELECT * FROM spark_mentor.vendas_mensais
 VERSION AS OF 0;`,
-      pyspark: `(
+      pyspark: `spark.sql("CREATE SCHEMA IF NOT EXISTS spark_mentor")
+
+(
     vendas_limpas
     .write
     .format("delta")
     .mode("overwrite")
     .partitionBy("ano_mes")
-    .save("/gold/vendas_mensais")
+    .saveAsTable("spark_mentor.vendas_mensais")
 )
 
 releitura = (
-    spark.read.format("delta")
-    .load("/gold/vendas_mensais")
+    spark.read.table("spark_mentor.vendas_mensais")
     .filter(F.col("ano_mes") == "2026-07")
 )`,
-      exercise: "Grave pedidos_validos em Delta no modo overwrite, particionado por ano_mes, e releia o destino.",
-      starter: `(
+      exercise: "Crie o schema spark_mentor, grave pedidos_validos como a tabela Delta gerenciada spark_mentor.pedidos no modo overwrite, particione por ano_mes e releia a tabela.",
+      starter: `spark.sql("CREATE SCHEMA IF NOT EXISTS ____")
+
+(
     pedidos_validos.write
-    # formato, modo, partição e destino
+    # formato, modo, partição e tabela gerenciada
 )
 
-resultado = spark.read.____`,
-      hint: "Encadeie format('delta'), mode('overwrite'), partitionBy('ano_mes') e save(caminho).",
-      solution: `(
+resultado = spark.read.____(____)`,
+      hint: "Crie o schema spark_mentor e encadeie format('delta'), mode('overwrite'), partitionBy('ano_mes') e saveAsTable('spark_mentor.pedidos').",
+      solution: `spark.sql("CREATE SCHEMA IF NOT EXISTS spark_mentor")
+
+(
     pedidos_validos.write
     .format("delta")
     .mode("overwrite")
     .partitionBy("ano_mes")
-    .save("/silver/pedidos")
+    .saveAsTable("spark_mentor.pedidos")
 )
 
-resultado = (
-    spark.read
-    .format("delta")
-    .load("/silver/pedidos")
-)`,
+resultado = spark.read.table("spark_mentor.pedidos")`,
       quiz: {
         question: "O que Delta acrescenta ao armazenamento Parquet?",
         options: ["Somente arquivos CSV auxiliares", "Log transacional, ACID, versões e operações como merge", "Uma linguagem que substitui Python", "Memória infinita"],

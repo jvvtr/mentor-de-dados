@@ -8,9 +8,47 @@
     today: ["TRILHA GUIADA", "Estudo de hoje"],
     trail: ["PLANO DE ESTUDOS", "Trilha de 4 semanas"],
     lab: ["REFERÊNCIA PRÁTICA", "SQL ↔ PySpark"],
-    tutor: ["APOIO AO ESTUDO", "Tutor Spark"],
+    setup: ["COMECE POR AQUI", "Primeiros passos"],
+    tutor: ["APOIO AO ESTUDO", "Tutor local"],
     glossary: ["CONSULTA RÁPIDA", "Glossário"],
     progress: ["SEU HISTÓRICO", "Meu progresso"]
+  };
+
+  const SESSION_STEPS = [
+    { label: "Retomada", short: "Retomada", minutes: 5 },
+    { label: "Conceito", short: "Conceito", minutes: 15 },
+    { label: "SQL ↔ PySpark", short: "Comparar", minutes: 15 },
+    { label: "Prática", short: "Prática", minutes: 20 },
+    { label: "Quiz e registro", short: "Quiz", minutes: 5 }
+  ];
+
+  const PRACTICE_RUBRICS = {
+    1: [["Cria ou obtém um DataFrame", ["spark.range", "createDataFrame"]], ["Exibe o resultado", ".show("]],
+    2: [["Cria o DataFrame", "createDataFrame"], ["Mostra as linhas", ".show("], ["Inspeciona o schema", ".printSchema("]],
+    3: [["Filtra os clientes", [".filter(", ".where("]], ["Seleciona as colunas", ".select("], ["Ordena o resultado", ".orderBy("]],
+    4: [["Trata valores nulos", [".fillna(", "coalesce("]], ["Cria uma nova coluna", ".withColumn("], ["Calcula o valor", "quantidade", "preco_unitario"]],
+    5: [["Aplica transformações", ".filter(", ".select("], ["Ordena os dados", ".orderBy("], ["Dispara uma action", ".count("]],
+    6: [["Usa o DataFrameReader", "spark.read"], ["Configura a leitura", ".option("], ["Lê o CSV", ".csv("], ["Seleciona colunas", ".select("]],
+    7: [["Registra uma view", "createOrReplaceTempView"], ["Executa Spark SQL", "spark.sql("]],
+    8: [["Cria o valor do pedido", ".withColumn("], ["Agrupa por status", ".groupBy("], ["Calcula as métricas", ".agg(", "sum("]],
+    9: [["Combina os DataFrames", ".join("], ["Mantém pedidos sem correspondência", "left"], ["Encontra nulos", ".isNull("]],
+    10: [["Define uma janela", "Window.partitionBy"], ["Ordena a janela", ".orderBy("], ["Cria o ranking", ["dense_rank", "row_number"]]],
+    11: [["Redistribui os dados", ".repartition("], ["Identifica a partição", "spark_partition_id"], ["Exibe a distribuição", ".groupBy(", ".show("]],
+    12: [["Filtra antes de agregar", ".filter("], ["Reduz as colunas", ".select("], ["Agrupa e agrega", ".groupBy(", ".agg("]],
+    13: [["Persiste o DataFrame", [".cache(", ".persist("]], ["Materializa o cache", ".count("], ["Libera os recursos", ".unpersist("]],
+    14: [["Importa ou usa broadcast", "broadcast("], ["Executa o join", ".join("], ["Inspeciona o plano", ".explain("]],
+    15: [["Monta a consulta", ".join("], ["Pede o plano formatado", ".explain(", "formatted"]],
+    16: [["Define a regra inválida", "regra_invalida"], ["Separa rejeitados", ".filter("], ["Mantém os válidos", "~regra_invalida"]],
+    17: [["Particiona pela chave", "Window.partitionBy"], ["Numera as versões", "row_number"], ["Mantém a posição 1", ".filter("], ["Remove a coluna auxiliar", ".drop("]],
+    18: [["Configura a escrita", ".write"], ["Usa Delta", ".format(", "delta"], ["Escolhe o modo", ".mode("], ["Grava uma tabela gerenciada", ".saveAsTable("]],
+    19: [["Filtra os aprovados", ".filter("], ["Cria o mês", "date_trunc"], ["Define a granularidade", ".groupBy("], ["Calcula as métricas", ".agg("]],
+    20: [["Explica Apache Spark", "spark"], ["Explica DataFrame", "dataframe"], ["Diferencia partition e shuffle", "partition", "shuffle"], ["Compara SQL e PySpark", "sql", "pyspark"]]
+  };
+
+  const LESSON_RUNTIME_NOTES = {
+    13: { environment: "local", label: "PySpark local", note: "cache e persist não são suportados no compute serverless do Databricks Free Edition. Execute esta prática no ambiente local." },
+    18: { environment: "databricks", label: "Databricks recomendado", note: "Use saveAsTable em um schema do Unity Catalog. O starter local mínimo não inclui Delta Lake." },
+    20: { environment: "reflection", label: "Reflexão escrita", note: "Esta atividade consolida conceitos em suas palavras e não precisa ser executada como código." }
   };
 
   const defaultState = {
@@ -22,6 +60,9 @@
     quizAnswers: {},
     exerciseDrafts: {},
     practiceDone: {},
+    lessonSteps: {},
+    preferredEnvironment: "databricks",
+    environmentReady: false,
     timers: {},
     notes: "",
     studySeconds: {},
@@ -36,6 +77,7 @@
   let activeTimerLessonId = null;
   let lastFocusedElement = null;
   let activeLabOperation = DATA.labOperations[0].id;
+  let pendingSaveTimer = null;
 
   const els = {
     container: document.getElementById("view-container"),
@@ -84,6 +126,7 @@
       state.sidebarCollapsed = !state.sidebarCollapsed;
       document.body.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
       saveState();
+      updateShell();
     });
 
     els.menuButton.addEventListener("click", openMobileMenu);
@@ -127,6 +170,7 @@
       case "today": renderToday(); break;
       case "trail": renderTrail(); break;
       case "lab": renderLab(); break;
+      case "setup": renderSetup(); break;
       case "tutor": renderTutor(); break;
       case "glossary": renderGlossary(); break;
       case "progress": renderProgress(); break;
@@ -140,169 +184,219 @@
     const quizState = state.quizAnswers[lesson.id] || {};
     const timer = getTimer(lesson.id);
     const completed = state.completedLessons.includes(lesson.id);
+    const stepIndex = getLessonStep(lesson.id);
     const firstName = getFirstName();
     const greeting = getGreeting();
 
     els.container.innerHTML = `
-      <div class="view-stack">
-        <section class="lesson-hero card">
-          <span class="eyebrow">${greeting.toUpperCase()}, ${escapeHtml(firstName.toUpperCase())} · DIA ${lesson.id} DE ${DATA.lessons.length}</span>
-          <h2>${escapeHtml(lesson.title)}</h2>
-          <p>${escapeHtml(lesson.objective)}</p>
-          <div class="hero-meta">
-            <span class="hero-chip"><strong>Semana ${lesson.week}</strong> de 4</span>
-            <span class="hero-chip"><strong>60 minutos</strong> de estudo guiado</span>
-            <span class="hero-chip">${completed ? "✓ Aula concluída" : "Em andamento"}</span>
+      <div class="guided-session view-stack route-enter">
+        <section class="card session-hero">
+          <div class="session-hero-copy">
+            <span class="eyebrow">${greeting.toUpperCase()}, ${escapeHtml(firstName.toUpperCase())} · AULA ${lesson.id} DE ${DATA.lessons.length}</span>
+            <h2>${escapeHtml(lesson.title)}</h2>
+            <p>${escapeHtml(lesson.objective)}</p>
+            <div class="hero-meta">
+              <span class="hero-chip"><strong>Semana ${lesson.week}</strong> de 4</span>
+              <span class="hero-chip"><strong>60 minutos</strong> com pausas possíveis</span>
+              <span class="hero-chip ${completed ? "is-complete" : ""}">${completed ? "✓ Aula concluída" : `Etapa ${stepIndex + 1} de 5`}</span>
+            </div>
           </div>
+          <a class="technology-mark" href="https://spark.apache.org/" target="_blank" rel="noreferrer" aria-label="Conheça o Apache Spark no site oficial">
+            <span>TECNOLOGIA ESTUDADA</span>
+            <img src="assets/apache-spark-logo-trademark.png" width="240" height="121" alt="Apache Spark" />
+            <small>Marca oficial, usada sem alterações</small>
+          </a>
         </section>
 
-        <div class="today-grid">
-          <div class="lesson-column">
-            <section class="card section-card">
-              <div class="section-heading">
-                <div>
-                  <span class="eyebrow">MICROAULA</span>
-                  <h3>${escapeHtml(lesson.subtitle)}</h3>
-                  <p>${escapeHtml(lesson.intro)}</p>
-                </div>
-                <span class="time-badge">15 min</span>
-              </div>
-              <div class="concept-list">
-                ${lesson.concepts.map((concept) => `
-                  <article class="concept-item">
-                    <strong>${escapeHtml(concept.title)}</strong>
-                    <p>${escapeHtml(concept.text)}</p>
-                  </article>
-                `).join("")}
-              </div>
-              <div class="analogy-box"><strong>Conexão com o que você já conhece:</strong> ${escapeHtml(lesson.analogy)}</div>
-            </section>
-
-            <section class="card section-card">
-              <div class="section-heading">
-                <div>
-                  <span class="eyebrow">MESMA LÓGICA, DUAS SINTAXES</span>
-                  <h3>SQL ↔ PySpark</h3>
-                  <p>Alterne as abas e compare o plano que você já conhece com a DataFrame API.</p>
-                </div>
-                <span class="time-badge">15 min</span>
-              </div>
-              ${renderCodeTabs(lesson)}
-            </section>
-
-            <section class="card section-card">
-              <div class="section-heading">
-                <div>
-                  <span class="eyebrow">MÃO NA MASSA</span>
-                  <h3>Prática guiada</h3>
-                  <p>Copie o exercício para um notebook Databricks ou rascunhe sua solução aqui.</p>
-                </div>
-                <span class="time-badge">20 min</span>
-              </div>
-              <div class="exercise-prompt">${escapeHtml(lesson.exercise)}</div>
-              <textarea class="exercise-area" id="exercise-draft" spellcheck="false" aria-label="Sua solução para o exercício" placeholder="Escreva sua tentativa aqui...">${escapeHtml(state.exerciseDrafts[lesson.id] || lesson.starter)}</textarea>
-              <div class="exercise-actions">
-                <button class="ghost-button" id="show-hint">Mostrar dica</button>
-                <button class="secondary-button" id="show-solution">Comparar com a solução</button>
-              </div>
-              <label class="check-row practice-confirmation">
-                <input type="checkbox" id="practice-done" ${state.practiceDone[lesson.id] ? "checked" : ""} />
-                <span>Pratiquei no Databricks ou escrevi minha própria tentativa acima.</span>
-              </label>
-              <div class="hint-panel" id="hint-panel" hidden>${escapeHtml(lesson.hint)}</div>
-              <div class="solution-panel" id="solution-panel" hidden>
-                <button class="code-copy" data-copy-target="solution-code">Copiar</button>
-                <pre><code id="solution-code">${escapeHtml(lesson.solution)}</code></pre>
-              </div>
-            </section>
-
-            <section class="card section-card">
-              <div class="section-heading">
-                <div>
-                  <span class="eyebrow">CHECAGEM RÁPIDA</span>
-                  <h3>${escapeHtml(lesson.quiz.question)}</h3>
-                  <p>Você pode tentar novamente. O objetivo é compreender, não acertar de primeira.</p>
-                </div>
-                <span class="time-badge">5 min</span>
-              </div>
-              <div class="quiz-options" id="quiz-options">
-                ${lesson.quiz.options.map((option, index) => renderQuizOption(lesson, quizState, option, index)).join("")}
-              </div>
-              <div class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite" ${quizState.selected === undefined ? "hidden" : ""}>
-                ${quizState.selected === undefined ? "" : renderQuizFeedback(lesson, quizState.selected)}
-              </div>
-            </section>
+        <section class="card session-control" aria-label="Controles da sessão">
+          <div class="session-control-head">
+            <div>
+              <span class="eyebrow">ROTEIRO DE HOJE</span>
+              <strong>${checks.filter(Boolean).length} de 5 blocos registrados</strong>
+            </div>
+            <span class="status-badge ${timer.remaining === 0 ? "done" : ""}" id="timer-status">${timer.remaining === 0 ? "Finalizada" : timer.running ? "Em andamento" : "Pronta"}</span>
           </div>
-
-          <aside class="side-column" aria-label="Rotina da aula">
-            <section class="card routine-card">
-              <div class="routine-header">
-                <h3>Sua sessão de 1 hora</h3>
-                <span class="status-badge ${timer.remaining === 0 ? "done" : ""}" id="timer-status">${timer.remaining === 0 ? "Finalizada" : timer.running ? "Em andamento" : "Pronta"}</span>
-              </div>
-              <div class="timer-face" id="timer-face">
-                <div class="timer-inner">
-                  <strong id="timer-value" role="timer" aria-label="Tempo restante">${formatTime(timer.remaining)}</strong>
-                  <span id="timer-phase">${getTimerPhase(timer.remaining).label}</span>
-                </div>
+          <div class="session-control-body">
+            <div class="session-progress" aria-label="Etapas da aula">
+              ${SESSION_STEPS.map((step, index) => `
+                <button class="session-step ${index === stepIndex ? "active" : ""} ${checks[index] ? "complete" : ""}" ${index === stepIndex ? 'aria-current="step"' : ""} data-session-step="${index}">
+                  <span class="session-step-index">${checks[index] ? "✓" : index + 1}</span>
+                  <span><strong>${escapeHtml(step.short)}</strong><small>${step.minutes} min</small></span>
+                </button>
+              `).join("")}
+            </div>
+            <div class="compact-timer" id="timer-face">
+              <div class="compact-timer-value">
+                <strong id="timer-value" role="timer" aria-label="Tempo restante">${formatTime(timer.remaining)}</strong>
+                <span id="timer-phase">${getTimerPhase(timer.remaining).label}</span>
               </div>
               <div class="timer-actions">
-                <button class="primary-button" id="timer-toggle">${timer.running ? "Pausar" : timer.remaining === 0 ? "Recomeçar" : "Iniciar sessão"}</button>
-                <button class="secondary-button" id="timer-reset" aria-label="Reiniciar cronômetro" title="Reiniciar cronômetro">↻</button>
+                <button class="primary-button" id="timer-toggle">${timer.running ? "Pausar" : timer.remaining === 0 ? "Recomeçar" : "Iniciar"}</button>
+                <button class="secondary-button icon-only" id="timer-reset" aria-label="Reiniciar cronômetro" title="Reiniciar cronômetro">↻</button>
               </div>
-              <ol class="routine-steps" id="routine-steps">
-                ${renderRoutineSteps(timer.remaining)}
-              </ol>
-            </section>
+            </div>
+          </div>
+          <ol class="visually-hidden" id="routine-steps">${renderRoutineSteps(timer.remaining)}</ol>
+        </section>
 
-            <section class="card section-card">
-              <div class="section-heading">
-                <div>
-                  <span class="eyebrow">CHECKLIST</span>
-                  <h3>Blocos de hoje</h3>
-                </div>
-                <span class="status-badge">${checks.filter(Boolean).length}/5</span>
-              </div>
-              <div class="checklist">
-                ${DATA.routine.map((step, index) => `
-                  <label class="check-row">
-                    <input type="checkbox" data-check-index="${index}" ${checks[index] ? "checked" : ""} />
-                    <span>${escapeHtml(step.label)} · ${step.minutes} min</span>
-                  </label>
-                `).join("")}
-              </div>
-            </section>
+        <section class="card session-stage">
+          ${renderSessionStage(lesson, stepIndex, quizState, completed)}
+        </section>
 
-            <section class="card completion-card">
-              <div class="completion-icon">${completed ? "✓" : "→"}</div>
-              <h3>${completed ? "Aula concluída" : "Feche o ciclo de hoje"}</h3>
-              <p>${completed ? "Você pode revisar esta aula quando quiser ou seguir para a próxima." : "Registre uma tentativa na prática e responda ao quiz para concluir."}</p>
-              <button class="${completed ? "secondary-button" : "primary-button"} full-width" id="complete-lesson">
-                ${completed ? (lesson.id < DATA.lessons.length ? "Ir para a próxima aula" : "Revisar a trilha") : "Concluir aula"}
-              </button>
-            </section>
-          </aside>
-        </div>
+        <nav class="session-footer" aria-label="Navegação entre etapas">
+          <button class="secondary-button" data-step-direction="-1" ${stepIndex === 0 ? "disabled" : ""}>← Etapa anterior</button>
+          <span>Etapa ${stepIndex + 1} de ${SESSION_STEPS.length}</span>
+          ${stepIndex < SESSION_STEPS.length - 1
+            ? '<button class="primary-button" data-step-direction="1">Salvar e continuar →</button>'
+            : '<button class="secondary-button" data-session-step="0">Rever desde o início</button>'}
+        </nav>
       </div>
     `;
 
-    bindTodayEvents(lesson);
+    bindTodayEvents(lesson, stepIndex);
     updateTimerUI(lesson.id);
     if (timer.running) startTimerInterval(lesson.id);
+  }
+
+  function renderSessionStage(lesson, stepIndex, quizState, completed) {
+    if (stepIndex === 0) {
+      const previous = lesson.id > 1 ? getLesson(lesson.id - 1) : null;
+      return `
+        <div class="stage-layout stage-recap">
+          <div class="stage-main">
+            <div class="section-heading">
+              <div><span class="eyebrow">ETAPA 1 · RETOMADA</span><h3>Prepare o contexto antes do código</h3></div>
+              <span class="time-badge">5 min</span>
+            </div>
+            <div class="recap-grid">
+              <article class="recap-card"><span>OBJETIVO DE HOJE</span><p>${escapeHtml(lesson.objective)}</p></article>
+              <article class="recap-card"><span>PONTO DE PARTIDA</span><p>${previous ? `Na aula anterior, você estudou “${escapeHtml(previous.title)}”. Tente explicar em uma frase antes de seguir.` : "Você já conhece SQL: use esse repertório para perceber que o Spark oferece outra forma de descrever transformações."}</p></article>
+            </div>
+            <div class="warmup-prompt"><strong>Pergunta de aquecimento:</strong> onde uma transformação semelhante apareceria em um relatório do Power BI ou em uma consulta SQL?</div>
+          </div>
+          <aside class="environment-nudge ${state.environmentReady ? "ready" : ""}">
+            <img src="assets/spark-data-scale-icon.svg" width="88" height="88" alt="" aria-hidden="true" />
+            <span class="eyebrow">AMBIENTE DE PRÁTICA</span>
+            <h4>${state.environmentReady ? "Ambiente marcado como pronto" : "Ainda não configurou?"}</h4>
+            <p>${state.environmentReady ? `Você escolheu ${state.preferredEnvironment === "databricks" ? "Databricks Free Edition" : "PySpark local"}. É possível trocar a qualquer momento.` : "Leva poucos minutos para começar pelo navegador ou preparar o PySpark no Windows."}</p>
+            <button class="secondary-button" data-open-setup>${state.environmentReady ? "Revisar configuração" : "Configurar ambiente"}</button>
+          </aside>
+        </div>`;
+    }
+
+    if (stepIndex === 1) {
+      return `
+        <div class="stage-main readable-stage">
+          <div class="section-heading">
+            <div><span class="eyebrow">ETAPA 2 · CONCEITO</span><h3>${escapeHtml(lesson.subtitle)}</h3><p>${escapeHtml(lesson.intro)}</p></div>
+            <span class="time-badge">15 min</span>
+          </div>
+          <div class="concept-list">
+            ${lesson.concepts.map((concept, index) => `<article class="concept-item"><span class="concept-number">${String(index + 1).padStart(2, "0")}</span><div><strong>${escapeHtml(concept.title)}</strong><p>${escapeHtml(concept.text)}</p></div></article>`).join("")}
+          </div>
+          <div class="analogy-box"><strong>Conexão com o que você já conhece:</strong> ${escapeHtml(lesson.analogy)}</div>
+        </div>`;
+    }
+
+    if (stepIndex === 2) {
+      return `
+        <div class="stage-main">
+          <div class="section-heading">
+            <div><span class="eyebrow">ETAPA 3 · TRADUÇÃO MENTAL</span><h3>SQL ↔ PySpark</h3><p>Compare as duas formas de expressar a mesma intenção. O Spark otimiza o plano; você escolhe a interface mais clara para o problema.</p></div>
+            <span class="time-badge">15 min</span>
+          </div>
+          ${renderCodeTabs(lesson)}
+          <div class="comparison-tip"><strong>Faça agora:</strong> identifique no PySpark onde estão o <code>SELECT</code>, o <code>WHERE</code> e o <code>GROUP BY</code> da versão SQL.</div>
+        </div>`;
+    }
+
+    if (stepIndex === 3) return renderPracticeWorkspace(lesson);
+
+    return `
+      <div class="stage-main completion-stage">
+        <div class="section-heading">
+          <div><span class="eyebrow">ETAPA 5 · QUIZ E REGISTRO</span><h3>${escapeHtml(lesson.quiz.question)}</h3><p>Você pode tentar novamente. O objetivo é compreender, não acertar de primeira.</p></div>
+          <span class="time-badge">5 min</span>
+        </div>
+        <div class="quiz-options" id="quiz-options" role="group" aria-label="Alternativas do quiz">
+          ${lesson.quiz.options.map((option, index) => renderQuizOption(lesson, quizState, option, index)).join("")}
+        </div>
+        <div class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite" ${quizState.selected === undefined ? "hidden" : ""}>
+          ${quizState.selected === undefined ? "" : renderQuizFeedback(lesson, quizState.selected)}
+        </div>
+        <div class="completion-panel ${completed ? "is-complete" : ""}">
+          <div class="completion-icon">${completed ? "✓" : "→"}</div>
+          <div><h3>${completed ? "Aula concluída" : "Feche o ciclo de hoje"}</h3><p>${completed ? "Você pode revisar esta aula quando quiser ou seguir para a próxima." : "Confirme a prática e responda ao quiz para registrar a conclusão."}</p></div>
+          <button class="${completed ? "secondary-button" : "primary-button"}" id="complete-lesson">${completed ? (lesson.id < DATA.lessons.length ? "Próxima aula" : "Revisar trilha") : "Concluir aula"}</button>
+        </div>
+      </div>`;
+  }
+
+  function renderPracticeWorkspace(lesson) {
+    const draft = state.exerciseDrafts[lesson.id] ?? lesson.starter;
+    const lineCount = Math.max(1, draft.split("\n").length);
+    const runtime = getLessonRuntime(lesson.id);
+    const draftMeta = getDraftMetadata(lesson);
+    const isReflection = runtime.environment === "reflection";
+    const executionTarget = runtime.environment === "local" ? "seu ambiente PySpark local" : "um notebook do Databricks Free Edition";
+    return `
+      <div class="stage-main practice-workspace">
+        <div class="section-heading">
+          <div><span class="eyebrow">ETAPA 4 · PRÁTICA</span><h3>${isReflection ? "Reflexão final" : "Laboratório da aula"}</h3><p>${isReflection ? "Consolide os conceitos com suas palavras e revise a clareza das explicações." : "Planeje aqui, verifique a estrutura e execute em um ambiente Spark real."}</p></div>
+          <span class="time-badge">20 min</span>
+        </div>
+        <div class="runtime-notice ${runtime.environment === "local" ? "local-only" : ""}">
+          <div><span class="runtime-dot"></span><strong>${escapeHtml(runtime.label)}</strong><p>${escapeHtml(runtime.note)}</p></div>
+          <button class="ghost-button" data-open-setup>${isReflection ? "Revisar ambientes" : "Ver como executar"}</button>
+        </div>
+        <div class="exercise-prompt"><span>DESAFIO</span>${escapeHtml(lesson.exercise)}</div>
+        <div class="editor-shell">
+          <header class="editor-header">
+            <div><span class="editor-dot red"></span><span class="editor-dot amber"></span><span class="editor-dot green"></span><strong>${escapeHtml(draftMeta.filename)}</strong></div>
+            <span class="editor-mode">${escapeHtml(draftMeta.modeLabel)}</span>
+          </header>
+          <div class="editor-body">
+            <pre class="editor-line-numbers" id="editor-lines" aria-hidden="true">${Array.from({ length: lineCount }, (_, index) => index + 1).join("\n")}</pre>
+            <textarea id="exercise-draft" class="code-editor" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Rascunho da solução do exercício">${escapeHtml(draft)}</textarea>
+          </div>
+          <footer class="editor-statusbar"><span id="draft-status">Salvo neste navegador</span><span id="code-stats">${lineCount} linhas · ${draft.length} caracteres</span></footer>
+        </div>
+        <div class="editor-toolbar" role="toolbar" aria-label="Ações do rascunho">
+          <button class="primary-button" id="validate-code">Verificar estrutura</button>
+          <button class="secondary-button" id="copy-draft">Copiar</button>
+          <button class="secondary-button" id="download-draft">Baixar ${escapeHtml(draftMeta.extension)}</button>
+          <button class="ghost-button" id="reset-draft">Restaurar início</button>
+        </div>
+        <div class="validation-result" id="validation-result" role="status" aria-live="polite" hidden></div>
+        <div class="execution-lane">
+          <div><strong>${isReflection ? "Registrar sua reflexão" : "Executar de verdade"}</strong><p>${isReflection ? "Complete os cinco tópicos com suas palavras. A verificação procura os conceitos esperados, mas a qualidade da explicação depende da sua revisão." : `Copie o código para ${executionTarget}. A verificação acima analisa elementos esperados, mas não processa dados.`}</p></div>
+          <button class="secondary-button" data-open-setup>${isReflection ? "Revisar ambientes" : "Abrir primeiros passos →"}</button>
+        </div>
+        <div class="practice-support">
+          <button class="ghost-button" id="show-hint" aria-expanded="false" aria-controls="hint-panel">Mostrar dica</button>
+          <button class="ghost-button" id="show-solution" aria-expanded="false" aria-controls="solution-panel">Ver uma solução possível</button>
+        </div>
+        <div class="hint-panel" id="hint-panel" hidden>${escapeHtml(lesson.hint)}</div>
+        <div class="solution-panel" id="solution-panel" hidden><div class="solution-head"><strong>Uma solução possível</strong><button class="code-copy" data-copy-target="solution-code">Copiar</button></div><pre><code id="solution-code">${escapeHtml(lesson.solution)}</code></pre></div>
+        <label class="practice-confirmation">
+          <input type="checkbox" id="practice-done" ${state.practiceDone[lesson.id] ? "checked" : ""} />
+          <span><strong>Confirmação honesta</strong> Executei em um ambiente Spark real ou revisei minha tentativa com a verificação estrutural.</span>
+        </label>
+      </div>`;
   }
 
   function renderCodeTabs(lesson) {
     return `
       <div class="code-tabs">
         <div class="tab-list" role="tablist" aria-label="Comparação de código">
-          <button class="code-tab active" role="tab" aria-selected="true" aria-controls="code-sql" data-code-tab="sql">Spark SQL</button>
-          <button class="code-tab" role="tab" aria-selected="false" aria-controls="code-pyspark" data-code-tab="pyspark">PySpark</button>
+          <button class="code-tab active" id="tab-sql" role="tab" tabindex="0" aria-selected="true" aria-controls="code-sql" data-code-tab="sql">Spark SQL</button>
+          <button class="code-tab" id="tab-pyspark" role="tab" tabindex="-1" aria-selected="false" aria-controls="code-pyspark" data-code-tab="pyspark">PySpark</button>
         </div>
-        <div class="code-panel" id="code-sql" role="tabpanel">
+        <div class="code-panel" id="code-sql" role="tabpanel" aria-labelledby="tab-sql">
           <button class="code-copy" data-copy-target="sql-code">Copiar</button>
           <pre><code id="sql-code">${escapeHtml(lesson.sql)}</code></pre>
         </div>
-        <div class="code-panel" id="code-pyspark" role="tabpanel" hidden>
+        <div class="code-panel" id="code-pyspark" role="tabpanel" aria-labelledby="tab-pyspark" hidden>
           <button class="code-copy" data-copy-target="pyspark-code">Copiar</button>
           <pre><code id="pyspark-code">${escapeHtml(lesson.pyspark)}</code></pre>
         </div>
@@ -310,58 +404,329 @@
     `;
   }
 
-  function bindTodayEvents(lesson) {
+  function bindTodayEvents(lesson, stepIndex) {
+    document.querySelectorAll("[data-session-step]").forEach((button) => {
+      button.addEventListener("click", () => goToLessonStep(lesson.id, Number(button.dataset.sessionStep), stepIndex));
+    });
+    document.querySelectorAll("[data-step-direction]").forEach((button) => {
+      button.addEventListener("click", () => goToLessonStep(lesson.id, stepIndex + Number(button.dataset.stepDirection), stepIndex));
+    });
+    document.querySelectorAll("[data-open-setup]").forEach((button) => button.addEventListener("click", () => openSetupForLesson(lesson)));
+
     document.querySelectorAll("[data-code-tab]").forEach((tab) => {
       tab.addEventListener("click", () => switchCodeTab(tab.dataset.codeTab));
+      tab.addEventListener("keydown", (event) => {
+        if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+        event.preventDefault();
+        const target = tab.dataset.codeTab === "sql" ? "pyspark" : "sql";
+        switchCodeTab(target, true);
+      });
     });
     bindCopyButtons();
 
     const draft = document.getElementById("exercise-draft");
-    draft.addEventListener("input", () => {
-      state.exerciseDrafts[lesson.id] = draft.value;
-      state.practiceDone[lesson.id] = true;
-      markActivity(0);
-      saveState();
-      const practiceDone = document.getElementById("practice-done");
-      if (practiceDone) practiceDone.checked = true;
-    });
-
-    document.getElementById("practice-done").addEventListener("change", (event) => {
-      state.practiceDone[lesson.id] = event.target.checked;
-      markActivity(0);
-      saveState();
-    });
-
-    document.getElementById("show-hint").addEventListener("click", (event) => {
-      const panel = document.getElementById("hint-panel");
-      panel.hidden = !panel.hidden;
-      event.currentTarget.textContent = panel.hidden ? "Mostrar dica" : "Ocultar dica";
-    });
-
-    document.getElementById("show-solution").addEventListener("click", (event) => {
-      const panel = document.getElementById("solution-panel");
-      panel.hidden = !panel.hidden;
-      event.currentTarget.textContent = panel.hidden ? "Comparar com a solução" : "Ocultar solução";
-    });
+    if (draft) bindPracticeEvents(lesson, draft);
 
     document.querySelectorAll(".quiz-option").forEach((button) => {
       button.addEventListener("click", () => answerQuiz(lesson, Number(button.dataset.option)));
     });
 
-    document.querySelectorAll("[data-check-index]").forEach((checkbox) => {
-      checkbox.addEventListener("change", () => {
-        const checks = getChecklist(lesson.id);
-        checks[Number(checkbox.dataset.checkIndex)] = checkbox.checked;
-        state.checklist[lesson.id] = checks;
-        markActivity(0);
-        saveState();
-        renderToday();
-      });
+    document.getElementById("timer-toggle")?.addEventListener("click", () => toggleTimer(lesson.id));
+    document.getElementById("timer-reset")?.addEventListener("click", () => resetTimer(lesson.id));
+    document.getElementById("complete-lesson")?.addEventListener("click", () => completeLesson(lesson));
+  }
+
+  function bindPracticeEvents(lesson, draft) {
+    syncEditorChrome(draft);
+    draft.addEventListener("input", () => {
+      state.exerciseDrafts[lesson.id] = draft.value;
+      syncEditorChrome(draft);
+      const status = document.getElementById("draft-status");
+      if (status) status.textContent = "Salvando…";
+      scheduleStateSave(() => { if (status) status.textContent = "Salvo neste navegador"; });
+    });
+    draft.addEventListener("scroll", () => {
+      const lines = document.getElementById("editor-lines");
+      if (lines) lines.scrollTop = draft.scrollTop;
+    });
+    draft.addEventListener("keydown", (event) => {
+      if (event.key !== "Tab") return;
+      event.preventDefault();
+      const start = draft.selectionStart;
+      const end = draft.selectionEnd;
+      draft.setRangeText("    ", start, end, "end");
+      draft.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
-    document.getElementById("timer-toggle").addEventListener("click", () => toggleTimer(lesson.id));
-    document.getElementById("timer-reset").addEventListener("click", () => resetTimer(lesson.id));
-    document.getElementById("complete-lesson").addEventListener("click", () => completeLesson(lesson));
+    document.getElementById("practice-done")?.addEventListener("change", (event) => {
+      state.practiceDone[lesson.id] = event.target.checked;
+      markActivity(0);
+      saveState();
+    });
+    document.getElementById("validate-code")?.addEventListener("click", () => showPracticeValidation(lesson, draft.value));
+    document.getElementById("copy-draft")?.addEventListener("click", async (event) => {
+      const ok = await copyText(draft.value);
+      event.currentTarget.textContent = ok ? "Copiado ✓" : "Selecione e copie";
+      if (ok) toast("Rascunho copiado.");
+      window.setTimeout(() => { event.currentTarget.textContent = "Copiar"; }, 1600);
+    });
+    document.getElementById("download-draft")?.addEventListener("click", () => downloadDraft(lesson, draft.value));
+    document.getElementById("reset-draft")?.addEventListener("click", () => {
+      if (!window.confirm("Restaurar o código inicial desta aula? Seu rascunho atual será substituído.")) return;
+      draft.value = lesson.starter;
+      state.exerciseDrafts[lesson.id] = lesson.starter;
+      state.practiceDone[lesson.id] = false;
+      document.getElementById("practice-done").checked = false;
+      document.getElementById("validation-result").hidden = true;
+      syncEditorChrome(draft);
+      saveState();
+      toast("Código inicial restaurado.");
+    });
+
+    bindDisclosureButton("show-hint", "hint-panel", "Mostrar dica", "Ocultar dica");
+    bindDisclosureButton("show-solution", "solution-panel", "Ver uma solução possível", "Ocultar solução");
+  }
+
+  function bindDisclosureButton(buttonId, panelId, closedLabel, openLabel) {
+    const button = document.getElementById(buttonId);
+    const panel = document.getElementById(panelId);
+    if (!button || !panel) return;
+    button.addEventListener("click", () => {
+      panel.hidden = !panel.hidden;
+      button.setAttribute("aria-expanded", String(!panel.hidden));
+      button.textContent = panel.hidden ? closedLabel : openLabel;
+    });
+  }
+
+  function syncEditorChrome(editor) {
+    const count = Math.max(1, editor.value.split("\n").length);
+    const lines = document.getElementById("editor-lines");
+    const stats = document.getElementById("code-stats");
+    if (lines) lines.textContent = Array.from({ length: count }, (_, index) => index + 1).join("\n");
+    if (stats) stats.textContent = `${count} ${count === 1 ? "linha" : "linhas"} · ${editor.value.length} caracteres`;
+  }
+
+  function showPracticeValidation(lesson, code) {
+    state.exerciseDrafts[lesson.id] = code;
+    const rubric = PRACTICE_RUBRICS[lesson.id] || [];
+    const normalizedCode = normalize(code);
+    const changed = code.trim() !== lesson.starter.trim();
+    const hasPlaceholders = /(?:\.\.\.|_{4,}|#\s*complete\s+aqui)/i.test(code);
+    const results = rubric.map(([label, ...tokens]) => ({
+      label,
+      passed: tokens.every((requirement) => {
+        const alternatives = Array.isArray(requirement) ? requirement : [requirement];
+        return alternatives.some((token) => normalizedCode.includes(normalize(token)));
+      })
+    }));
+    results.unshift(
+      { label: "Alterou o rascunho inicial", passed: changed },
+      { label: "Removeu os placeholders", passed: !hasPlaceholders }
+    );
+    results.push(...getLessonSpecificChecks(lesson.id, code));
+    const passed = results.filter((item) => item.passed).length;
+    const enough = results.length > 0 && passed === results.length;
+    const panel = document.getElementById("validation-result");
+    panel.hidden = false;
+    panel.className = `validation-result ${enough ? "success" : "needs-work"}`;
+    panel.innerHTML = `
+      <div class="validation-head"><div><span>VERIFICAÇÃO ESTRUTURAL</span><strong>${enough ? "Boa base para executar" : "Revise alguns elementos"}</strong></div><b>${passed}/${results.length}</b></div>
+      <ul>${results.map((item) => `<li class="${item.passed ? "passed" : ""}"><span>${item.passed ? "✓" : "○"}</span>${escapeHtml(item.label)}</li>`).join("")}</ul>
+      <p>Esta análise procura padrões no texto; ela não compila, não executa o código e não substitui um teste no Spark.</p>`;
+    saveState();
+  }
+
+  function getLessonSpecificChecks(lessonId, code) {
+    const normalizedCode = normalize(code);
+    if (lessonId === 1) {
+      return [
+        { label: "Explica o papel do driver", passed: normalizedCode.includes("driver") },
+        { label: "Explica o papel dos executors", passed: normalizedCode.includes("executor") }
+      ];
+    }
+    if (lessonId === 2) {
+      const tuples = code.match(/\([^()\n]+,[^()\n]+,[^()\n]+\)/g) || [];
+      return [{ label: "Inclui pelo menos três produtos", passed: tuples.length >= 3 }];
+    }
+    if (lessonId === 5) {
+      const transformations = normalizedCode.match(/transformation/g) || [];
+      const actions = normalizedCode.match(/\baction\b/g) || [];
+      return [
+        { label: "Marca as três transformations", passed: transformations.length >= 3 },
+        { label: "Marca a action", passed: actions.length >= 1 }
+      ];
+    }
+    return [];
+  }
+
+  function downloadDraft(lesson, code) {
+    const meta = getDraftMetadata(lesson);
+    const blob = new Blob([code], { type: `${meta.mime};charset=utf-8` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = meta.filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    toast(`Arquivo ${meta.extension} preparado.`);
+  }
+
+  function getDraftMetadata(lesson) {
+    if (lesson.id === 20) {
+      return { filename: "aula_20_reflexao.md", extension: ".md", mime: "text/markdown", modeLabel: "REFLEXÃO LOCAL · NÃO É CÓDIGO EXECUTÁVEL" };
+    }
+    return { filename: `aula_${String(lesson.id).padStart(2, "0")}.py`, extension: ".py", mime: "text/x-python", modeLabel: "RASCUNHO LOCAL · NÃO EXECUTA SPARK" };
+  }
+
+  function goToLessonStep(lessonId, target, current) {
+    const next = Math.max(0, Math.min(SESSION_STEPS.length - 1, target));
+    const editor = document.getElementById("exercise-draft");
+    if (editor && current === 3) state.exerciseDrafts[lessonId] = editor.value;
+    if (next > current) getChecklist(lessonId)[current] = true;
+    state.lessonSteps[lessonId] = next;
+    markActivity(0);
+    saveState();
+    renderToday();
+    focusRenderedHeading(".session-stage h3");
+  }
+
+  function getLessonStep(lessonId) {
+    const value = Number(state.lessonSteps[lessonId]);
+    return Number.isInteger(value) ? Math.max(0, Math.min(SESSION_STEPS.length - 1, value)) : 0;
+  }
+
+  function getLessonRuntime(lessonId) {
+    if (LESSON_RUNTIME_NOTES[lessonId]) return LESSON_RUNTIME_NOTES[lessonId];
+    if (state.preferredEnvironment === "local") {
+      return { environment: "local", label: "PySpark local", note: "Execute com o ambiente virtual e o JDK 17 configurados conforme os Primeiros passos." };
+    }
+    return { environment: "databricks", label: "Databricks Free Edition", note: "Cole em um notebook Python conectado ao compute Serverless; a variável spark já estará disponível." };
+  }
+
+  function openSetupForLesson(lesson) {
+    const required = LESSON_RUNTIME_NOTES[lesson.id]?.environment;
+    if (["databricks", "local"].includes(required) && state.preferredEnvironment !== required) {
+      state.preferredEnvironment = required;
+      state.environmentReady = false;
+      saveState();
+    }
+    setView("setup");
+  }
+
+  function focusRenderedHeading(selector) {
+    window.setTimeout(() => {
+      const heading = els.container.querySelector(selector);
+      if (!heading) return;
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+    }, 0);
+  }
+
+  function renderSetup() {
+    const environment = state.preferredEnvironment;
+    els.container.innerHTML = `
+      <div class="setup-page view-stack route-enter">
+        <section class="card setup-hero">
+          <div>
+            <span class="eyebrow">SPARK REAL, SEM ATALHOS ENGANOSOS</span>
+            <h2>Escolha onde executar seus exercícios</h2>
+            <p>Este app organiza o estudo e valida a estrutura do rascunho. A execução acontece no Databricks Free Edition ou numa instalação local do PySpark.</p>
+            <div class="setup-version"><span>Conteúdo verificado em 15/07/2026</span><strong>PySpark 4.2.0 · Python 3.10+ · Java 17 recomendado</strong></div>
+          </div>
+          <img src="assets/apache-spark-logo-trademark.png" width="280" height="141" alt="Apache Spark" />
+        </section>
+
+        <section class="card execution-explainer">
+          <div class="execution-flow" aria-label="Fluxo da prática">
+            <div><span>1</span><strong>Mentor de Dados</strong><small>explica e prepara</small></div><b aria-hidden="true">→</b>
+            <div><span>2</span><strong>Databricks ou PC</strong><small>executa o código</small></div><b aria-hidden="true">→</b>
+            <div><span>3</span><strong>Apache Spark</strong><small>processa os dados</small></div>
+          </div>
+          <p><strong>Por que não há um “compilador Spark” embutido?</strong> Um executor Python leve no navegador não reproduz a JVM, o planejamento e o runtime distribuído do Spark. Mantemos o app rápido e ensinamos a usar um ambiente verdadeiro.</p>
+        </section>
+
+        <section class="setup-choice" aria-labelledby="environment-title">
+          <div class="section-heading"><div><span class="eyebrow">PASSO 1</span><h3 id="environment-title">Como você quer começar?</h3></div></div>
+          <div class="environment-cards">
+            <button class="card environment-card ${environment === "databricks" ? "selected" : ""}" data-environment="databricks" aria-pressed="${environment === "databricks"}">
+              <span class="recommendation-badge">RECOMENDADO</span><span class="environment-icon" aria-hidden="true">☁</span><strong>Databricks Free Edition</strong><span class="environment-description">Funciona no navegador, sem instalar Java ou Python. Ideal para seguir a trilha.</span><span class="environment-meta">Gratuito para aprendizado · sujeito a cotas</span>
+            </button>
+            <button class="card environment-card ${environment === "local" ? "selected" : ""}" data-environment="local" aria-pressed="${environment === "local"}">
+              <span class="environment-icon" aria-hidden="true">⌘</span><strong>PySpark local no Windows</strong><span class="environment-description">Bom para estudar offline e controlar seus arquivos. Exige Python e JDK.</span><span class="environment-meta">Open source · usa os recursos do seu PC</span>
+            </button>
+          </div>
+        </section>
+
+        ${environment === "databricks" ? renderDatabricksSetup() : renderLocalSetup()}
+
+        <section class="card setup-ready ${state.environmentReady ? "is-ready" : ""}">
+          <div><span class="setup-ready-icon">${state.environmentReady ? "✓" : "→"}</span><div><h3>${state.environmentReady ? "Ambiente marcado como pronto" : "Terminou o teste?"}</h3><p>Essa confirmação fica apenas neste navegador e pode ser alterada depois.</p></div></div>
+          <div class="setup-ready-actions"><button class="secondary-button" id="environment-ready">${state.environmentReady ? "Marcar como não pronto" : "Marcar ambiente como pronto"}</button><button class="primary-button" id="start-first-lesson">Ir para a aula atual →</button></div>
+        </section>
+
+        <p class="trademark-note">Apache Spark, Spark e o logotipo Apache Spark são marcas da Apache Software Foundation. Este projeto educacional é independente e não é endossado pela ASF.</p>
+      </div>`;
+
+    document.querySelectorAll("[data-environment]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.preferredEnvironment = button.dataset.environment;
+        state.environmentReady = false;
+        saveState();
+        renderSetup();
+        focusRenderedHeading(".setup-guide h3");
+      });
+    });
+    document.getElementById("environment-ready").addEventListener("click", () => {
+      state.environmentReady = !state.environmentReady;
+      saveState();
+      toast(state.environmentReady ? "Ambiente registrado como pronto." : "Status do ambiente atualizado.");
+      renderSetup();
+      focusRenderedHeading(".setup-ready h3");
+    });
+    document.getElementById("start-first-lesson").addEventListener("click", () => setView("today"));
+    bindCopyButtons();
+  }
+
+  function renderDatabricksSetup() {
+    return `
+      <section class="card setup-guide">
+        <div class="setup-guide-head"><div><span class="eyebrow">PASSO 2 · OPÇÃO RECOMENDADA</span><h3>Seu primeiro notebook no Databricks</h3><p>Não instale nada. Use somente dados sintéticos, públicos ou não sensíveis.</p></div><a class="secondary-button link-button" href="https://docs.databricks.com/aws/en/getting-started/free-edition" target="_blank" rel="noreferrer">Abrir guia oficial ↗</a></div>
+        <ol class="numbered-setup">
+          <li><span>1</span><div><strong>Crie uma conta Free Edition</strong><p>Use um e-mail pessoal e conclua a criação do workspace gratuito.</p></div></li>
+          <li><span>2</span><div><strong>Abra New → Notebook</strong><p>Escolha Python. O notebook deve se conectar automaticamente ao compute Serverless.</p></div></li>
+          <li><span>3</span><div><strong>Execute a primeira célula</strong><p>A variável <code>spark</code> já existe; não crie outra SparkSession.</p></div></li>
+        </ol>
+        <div class="setup-code-grid">
+          ${renderSetupCode("CÉLULA PYTHON", `vendas = spark.createDataFrame(\n    [(1, "Sul", 100.0), (2, "Sudeste", 250.0), (3, "Sul", 150.0)],\n    ["id", "regiao", "valor"],\n)\n\nvendas.show()\nvendas.createOrReplaceTempView("vendas")`, "setup-dbx-python")}
+          ${renderSetupCode("CÉLULA SQL", `%sql\nSELECT regiao, SUM(valor) AS faturamento\nFROM vendas\nGROUP BY regiao\nORDER BY faturamento DESC`, "setup-dbx-sql")}
+        </div>
+        <div class="setup-success"><strong>Resultado esperado:</strong> uma tabela com <em>Sudeste = 250</em> e <em>Sul = 250</em>. Se apareceu, seu ambiente está pronto.</div>
+        <div class="limitations-grid"><article><strong>O que funciona bem</strong><p>DataFrames, Spark SQL, Delta gerenciado e notebooks Python.</p></article><article><strong>Limites da conta gratuita</strong><p>Cotas diárias, uso não comercial, somente serverless, sem APIs RDD e sem cache de DataFrame.</p></article></div>
+      </section>`;
+  }
+
+  function renderLocalSetup() {
+    return `
+      <section class="card setup-guide">
+        <div class="setup-guide-head"><div><span class="eyebrow">PASSO 2 · WINDOWS LOCAL</span><h3>Python + JDK 17 + PySpark</h3><p>O pacote PySpark já traz o necessário para DataFrames e Spark SQL; não use tutoriais antigos com winutils.</p></div><a class="secondary-button link-button" href="https://spark.apache.org/docs/latest/api/python/getting_started/install.html" target="_blank" rel="noreferrer">Instalação oficial ↗</a></div>
+        <ol class="numbered-setup">
+          <li><span>1</span><div><strong>Instale Python 3.10 ou superior</strong><p>Marque a opção de adicionar o Python ao PATH. Depois, abra um novo PowerShell.</p><a href="https://www.python.org/downloads/windows/" target="_blank" rel="noreferrer">Downloads oficiais do Python ↗</a></div></li>
+          <li><span>2</span><div><strong>Instale um JDK 17</strong><p>O Spark 4.2 aceita Java 17, 21 ou 25; o JDK 17 é a escolha conservadora para a trilha.</p><a href="https://adoptium.net/temurin/releases/?version=17" target="_blank" rel="noreferrer">Eclipse Temurin 17 ↗</a></div></li>
+          <li><span>3</span><div><strong>Baixe e extraia o kit inicial</strong><p>Abra a pasta <code>starter</code> extraída e inicie o PowerShell dentro dela. Assim, os comandos encontrarão todos os arquivos.</p></div></li>
+        </ol>
+        <div class="starter-kit">
+          <div><span class="eyebrow">KIT INICIAL INCLUÍDO</span><h4>Baixe tudo na mesma pasta</h4><p>O ZIP contém o projeto completo. Depois de extrair, entre em <strong>mentor-de-dados-main\starter</strong>. Nos downloads individuais, salve ou mova os três arquivos para uma única pasta.</p></div>
+          <div class="starter-links"><a class="primary-button link-button" href="https://github.com/jvvtr/mentor-de-dados/archive/refs/heads/main.zip">Baixar kit completo .zip</a><a class="secondary-button link-button" href="starter/verificar_ambiente.py" download>Verificador .py</a><a class="secondary-button link-button" href="starter/laboratorio_vendas.py" download>Laboratório .py</a><a class="secondary-button link-button" href="starter/requirements.txt" download>requirements.txt</a><a class="ghost-button link-button" href="https://github.com/jvvtr/mentor-de-dados/blob/main/starter/README.md" target="_blank" rel="noreferrer">Ler instruções</a></div>
+        </div>
+        ${renderSetupCode("POWERSHELL · DENTRO DA PASTA starter", `py --version\njava -version\n\npy -m venv .venv\n.\\.venv\\Scripts\\python.exe -m pip install --upgrade pip\n.\\.venv\\Scripts\\python.exe -m pip install -r requirements.txt\n.\\.venv\\Scripts\\python.exe verificar_ambiente.py\n.\\.venv\\Scripts\\python.exe laboratorio_vendas.py`, "setup-local-powershell")}
+        <details class="troubleshooting"><summary>Java foi instalado, mas o comando não foi encontrado</summary><p>Confirme o caminho real do JDK e ajuste somente a sessão atual:</p><pre><code>$env:JAVA_HOME = "C:\\caminho\\para\\jdk-17"\n$env:Path = "$env:JAVA_HOME\\bin;$env:Path"\njava -version</code></pre></details>
+      </section>`;
+  }
+
+  function renderSetupCode(label, code, id) {
+    return `<div class="setup-code"><header><span>${escapeHtml(label)}</span><button class="code-copy" data-copy-target="${id}">Copiar</button></header><pre><code id="${id}">${escapeHtml(code)}</code></pre></div>`;
   }
 
   function renderTrail() {
@@ -478,7 +843,7 @@
     if (!state.chat.length) {
       state.chat = [{
         role: "tutor",
-        text: `Olá, ${getFirstName()}! Sou o tutor local do Spark Mentor. Posso explicar os conceitos centrais da trilha e sempre tento relacioná-los a SQL, Power BI e Databricks.\n\nExperimente uma das perguntas rápidas ou escreva algo como “o que é shuffle?”.`
+        text: `Olá, ${getFirstName()}! Sou o tutor local do Mentor de Dados. Posso explicar os conceitos centrais da trilha e sempre tento relacioná-los a SQL, Power BI e Databricks.\n\nExperimente uma das perguntas rápidas ou escreva algo como “o que é shuffle?”.`
       }];
       saveState();
     }
@@ -488,7 +853,7 @@
         <header class="tutor-header">
           <div class="tutor-avatar" aria-hidden="true">✦</div>
           <div>
-            <h3>Tutor Spark</h3>
+            <h3>Tutor de Dados</h3>
             <p>Assistente local de conceitos · funciona offline</p>
           </div>
           <span class="local-badge" title="Sem conexão com uma IA online">LOCAL · OFFLINE</span>
@@ -520,7 +885,7 @@
   }
 
   function renderMessage(message) {
-    return `<div class="message ${message.role === "user" ? "user" : "tutor"}">${message.role === "tutor" ? '<span class="message-meta">Tutor Spark</span>' : ""}${escapeHtml(message.text)}</div>`;
+    return `<div class="message ${message.role === "user" ? "user" : "tutor"}">${message.role === "tutor" ? '<span class="message-meta">Tutor de Dados</span>' : ""}${escapeHtml(message.text)}</div>`;
   }
 
   function sendTutorMessage(text) {
@@ -692,7 +1057,7 @@
 
     document.getElementById("study-notes").addEventListener("input", (event) => {
       state.notes = event.target.value;
-      saveState();
+      scheduleStateSave();
     });
     document.getElementById("reset-progress").addEventListener("click", resetProgress);
   }
@@ -718,11 +1083,13 @@
 
   function renderQuizOption(lesson, quizState, option, index) {
     const answered = quizState.selected !== undefined;
+    const selected = answered && index === quizState.selected;
     let className = "";
-    if (answered && index === quizState.selected) className = index === lesson.quiz.correct ? "correct" : "wrong";
+    if (selected) className = index === lesson.quiz.correct ? "correct" : "wrong";
     if (answered && index === lesson.quiz.correct && quizState.selected !== lesson.quiz.correct) className = "correct";
+    const resultLabel = answered ? (index === lesson.quiz.correct ? " Resposta correta." : selected ? " Resposta selecionada, incorreta." : "") : "";
     return `
-      <button class="quiz-option ${className}" data-option="${index}">
+      <button class="quiz-option ${className}" aria-pressed="${selected}" aria-label="${escapeAttr(`${String.fromCharCode(65 + index)}: ${option}.${resultLabel}`)}" data-option="${index}">
         <span class="option-letter">${String.fromCharCode(65 + index)}</span>
         <span>${escapeHtml(option)}</span>
       </button>
@@ -744,6 +1111,9 @@
     document.querySelectorAll(".quiz-option").forEach((button) => {
       const index = Number(button.dataset.option);
       button.classList.remove("selected", "correct", "wrong");
+      button.setAttribute("aria-pressed", String(index === selected));
+      const resultLabel = index === lesson.quiz.correct ? " Resposta correta." : index === selected ? " Resposta selecionada, incorreta." : "";
+      button.setAttribute("aria-label", `${String.fromCharCode(65 + index)}: ${lesson.quiz.options[index]}.${resultLabel}`);
       if (index === selected) button.classList.add(index === lesson.quiz.correct ? "correct" : "wrong");
       if (index === lesson.quiz.correct && selected !== lesson.quiz.correct) button.classList.add("correct");
     });
@@ -787,14 +1157,18 @@
     setView("today");
   }
 
-  function switchCodeTab(name) {
+  function switchCodeTab(name, focus = false) {
     document.querySelectorAll("[data-code-tab]").forEach((tab) => {
       const active = tab.dataset.codeTab === name;
       tab.classList.toggle("active", active);
       tab.setAttribute("aria-selected", String(active));
+      tab.tabIndex = active ? 0 : -1;
+      if (active && focus) tab.focus();
     });
-    document.getElementById("code-sql").hidden = name !== "sql";
-    document.getElementById("code-pyspark").hidden = name !== "pyspark";
+    const sqlPanel = document.getElementById("code-sql");
+    const pysparkPanel = document.getElementById("code-pyspark");
+    if (sqlPanel) sqlPanel.hidden = name !== "sql";
+    if (pysparkPanel) pysparkPanel.hidden = name !== "pyspark";
   }
 
   function bindCopyButtons() {
@@ -864,11 +1238,15 @@
         return;
       }
 
-      timer.remaining = Math.max(0, timer.remaining - 1);
-      timer.updatedAt = Date.now();
-      state.totalStudySeconds += 1;
+      const now = Date.now();
+      const elapsed = Math.floor((now - timer.updatedAt) / 1000);
+      if (elapsed < 1) return;
+      const studied = Math.min(elapsed, timer.remaining);
+      timer.remaining = Math.max(0, timer.remaining - elapsed);
+      timer.updatedAt = now;
+      state.totalStudySeconds += studied;
       const key = dateKey(new Date());
-      state.studySeconds[key] = (state.studySeconds[key] || 0) + 1;
+      state.studySeconds[key] = (state.studySeconds[key] || 0) + studied;
 
       if (timer.remaining === 0) {
         timer.running = false;
@@ -884,13 +1262,14 @@
   }
 
   function pauseTimer(updateUi = true) {
-    if (activeTimerLessonId !== null) {
-      const timer = getTimer(activeTimerLessonId);
+    const lessonId = activeTimerLessonId;
+    if (lessonId !== null) {
+      const timer = getTimer(lessonId);
       timer.running = false;
-      state.timers[activeTimerLessonId] = timer;
+      state.timers[lessonId] = timer;
     }
     stopTimerInterval();
-    if (updateUi && activeTimerLessonId !== null) updateTimerUI(activeTimerLessonId);
+    if (updateUi && lessonId !== null) updateTimerUI(lessonId);
   }
 
   function stopTimerInterval() {
@@ -912,11 +1291,13 @@
     const progress = ((TOTAL_SECONDS - timer.remaining) / TOTAL_SECONDS) * 100;
     value.textContent = formatTime(timer.remaining);
     phase.textContent = getTimerPhase(timer.remaining).label;
-    face.style.setProperty("--timer-progress", `${progress}%`);
-    toggle.textContent = timer.running ? "Pausar" : timer.remaining === 0 ? "Recomeçar" : "Iniciar sessão";
-    status.textContent = timer.remaining === 0 ? "Finalizada" : timer.running ? "Em andamento" : "Pausada";
-    status.classList.toggle("done", timer.remaining === 0);
-    steps.innerHTML = renderRoutineSteps(timer.remaining);
+    if (face) face.style.setProperty("--timer-progress", `${progress}%`);
+    if (toggle) toggle.textContent = timer.running ? "Pausar" : timer.remaining === 0 ? "Recomeçar" : "Iniciar";
+    if (status) {
+      status.textContent = timer.remaining === 0 ? "Finalizada" : timer.running ? "Em andamento" : timer.remaining === TOTAL_SECONDS ? "Pronta" : "Pausada";
+      status.classList.toggle("done", timer.remaining === 0);
+    }
+    if (steps) steps.innerHTML = renderRoutineSteps(timer.remaining);
   }
 
   function renderRoutineSteps(remaining) {
@@ -946,6 +1327,7 @@
     const timer = state.timers[lessonId];
     timer.remaining = Number.isFinite(timer.remaining) ? Math.max(0, Math.min(TOTAL_SECONDS, timer.remaining)) : TOTAL_SECONDS;
     timer.running = Boolean(timer.running);
+    timer.updatedAt = Number.isFinite(timer.updatedAt) ? timer.updatedAt : Date.now();
     return timer;
   }
 
@@ -971,6 +1353,10 @@
     els.xp.textContent = calculateXp();
     els.avatar.textContent = initials(state.profile.name);
     els.avatar.title = `Perfil de ${state.profile.name}`;
+    const collapseLabel = state.sidebarCollapsed ? "Expandir menu" : "Recolher menu";
+    els.sidebarCollapse.setAttribute("aria-label", collapseLabel);
+    els.sidebarCollapse.title = collapseLabel;
+    els.sidebarCollapse.textContent = state.sidebarCollapsed ? "›" : "‹";
   }
 
   function calculateXp() {
@@ -1143,6 +1529,13 @@
     safe.quizAnswers = input.quizAnswers && typeof input.quizAnswers === "object" ? input.quizAnswers : {};
     safe.exerciseDrafts = input.exerciseDrafts && typeof input.exerciseDrafts === "object" ? input.exerciseDrafts : {};
     safe.practiceDone = input.practiceDone && typeof input.practiceDone === "object" ? input.practiceDone : {};
+    safe.lessonSteps = input.lessonSteps && typeof input.lessonSteps === "object" ? input.lessonSteps : {};
+    Object.keys(safe.lessonSteps).forEach((lessonId) => {
+      const step = Number(safe.lessonSteps[lessonId]);
+      safe.lessonSteps[lessonId] = Number.isInteger(step) ? Math.max(0, Math.min(SESSION_STEPS.length - 1, step)) : 0;
+    });
+    safe.preferredEnvironment = ["databricks", "local"].includes(input.preferredEnvironment) ? input.preferredEnvironment : "databricks";
+    safe.environmentReady = Boolean(input.environmentReady);
     safe.timers = input.timers && typeof input.timers === "object" ? input.timers : {};
     Object.values(safe.timers).forEach((timer) => { if (timer && typeof timer === "object") timer.running = false; });
     safe.notes = typeof input.notes === "string" ? input.notes : "";
@@ -1161,6 +1554,15 @@
     } catch (error) {
       console.warn("Não foi possível salvar o progresso.", error);
     }
+  }
+
+  function scheduleStateSave(afterSave, delay = 450) {
+    if (pendingSaveTimer) window.clearTimeout(pendingSaveTimer);
+    pendingSaveTimer = window.setTimeout(() => {
+      saveState();
+      pendingSaveTimer = null;
+      if (typeof afterSave === "function") afterSave();
+    }, delay);
   }
 
   function structuredCloneSafe(value) {
