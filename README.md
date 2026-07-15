@@ -11,6 +11,12 @@ O **Spark Mentor** é um aplicativo web local de estudos criado para aproximar o
 
 O projeto transforma esse começo em uma rotina clara: **20 aulas, quatro semanas e uma hora de estudo por dia**, sempre conectando conceitos novos ao repertório que o estudante já possui.
 
+## Acesse o app
+
+### [Abrir o Spark Mentor no navegador](https://jvvtr.github.io/spark-mentor/)
+
+A versão online é publicada diretamente pelo GitHub Pages. O progresso continua sendo salvo somente no navegador utilizado.
+
 ## Objetivo
 
 Ao final da trilha, o estudante deverá conseguir:
@@ -70,7 +76,11 @@ O progresso é salvo com `localStorage` no próprio navegador. Não existe cadas
 
 ## Como usar
 
-### Opção 1 — abrir diretamente
+### Opção 1 — usar online
+
+Acesse [jvvtr.github.io/spark-mentor](https://jvvtr.github.io/spark-mentor/) e comece pela primeira aula.
+
+### Opção 2 — abrir diretamente
 
 1. Baixe ou clone este repositório.
 2. Abra a pasta do projeto.
@@ -78,7 +88,7 @@ O progresso é salvo com `localStorage` no próprio navegador. Não existe cadas
 
 O Spark Mentor funciona sem instalação e sem internet. Para manter seu progresso, abra sempre o mesmo arquivo no mesmo navegador.
 
-### Opção 2 — servidor local
+### Opção 3 — servidor local
 
 Se preferir servir o projeto localmente:
 
