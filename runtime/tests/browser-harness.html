@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head><meta charset="utf-8"><title>RUNNING</title></head>
+  <body>
+    <pre id="output">Inicializando…</pre>
+    <script src="../semantic-client.js"></script>
+    <script>
+      window.SemanticLab.run({
+        lessonId: 4,
+        mode: "sql",
+        code: "SELECT nome FROM clientes ORDER BY nome",
+        tables: [{ name: "clientes", columns: ["nome"], rows: [["Zeca"], ["Ana"]] }],
+        expected: { columns: ["nome"], rows: [["Ana"], ["Zeca"]], ordered: true }
+      }).then((result) => {
+        document.title = result.grade?.passed ? "PASS" : "FAIL";
+        document.getElementById("output").textContent = JSON.stringify(result);
+      }).catch((error) => {
+        document.title = "ERROR";
+        document.getElementById("output").textContent = `${error.code || "E"}: ${error.message}`;
+      });
+    </script>
+  </body>
+</html>

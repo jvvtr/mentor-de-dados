@@ -1,0 +1,160 @@
+{
+  "version": "sales-v1",
+  "tables": {
+    "clientes": {
+      "schema": {
+        "id_cliente": "BIGINT",
+        "nome": "VARCHAR",
+        "estado": "VARCHAR",
+        "status": "VARCHAR"
+      },
+      "rows": [
+        [1, "Ana", "SP", "ATIVO"],
+        [2, "Bruno", "RJ", "ATIVO"],
+        [3, "Carla", "SP", "INATIVO"],
+        [4, "Diego", "MG", "ATIVO"],
+        [5, "Elisa", null, "ATIVO"]
+      ]
+    },
+    "produtos": {
+      "schema": {
+        "id_produto": "BIGINT",
+        "categoria": "VARCHAR",
+        "preco": "DOUBLE"
+      },
+      "rows": [
+        [101, "Notebook", 3500.0],
+        [102, "Monitor", 1200.0],
+        [103, "Acessórios", 90.0],
+        [104, "Acessórios", null]
+      ]
+    },
+    "pedidos": {
+      "schema": {
+        "id_pedido": "BIGINT",
+        "id_cliente": "BIGINT",
+        "id_produto": "BIGINT",
+        "quantidade": "BIGINT",
+        "preco_unitario": "DOUBLE",
+        "status": "VARCHAR",
+        "data_pedido": "DATE",
+        "ano_mes": "VARCHAR"
+      },
+      "rows": [
+        [1001, 1, 101, 1, 3500.0, "APROVADO", "2026-06-03", "2026-06"],
+        [1002, 2, 102, 2, 1200.0, "PENDENTE", "2026-06-10", "2026-06"],
+        [1003, 3, 103, 3, 90.0, "APROVADO", "2026-07-01", "2026-07"],
+        [1004, 999, 103, 1, 90.0, "APROVADO", "2026-07-04", "2026-07"],
+        [1005, 4, 104, 2, null, "CANCELADO", "2026-07-08", "2026-07"],
+        [null, 5, 101, 1, 3500.0, "DESCONHECIDO", "2026-07-10", "2026-07"],
+        [1007, 1, 102, 0, 1200.0, "PENDENTE", "2026-07-11", "2026-07"]
+      ]
+    },
+    "vendas": {
+      "schema": {
+        "id_pedido": "BIGINT",
+        "id_cliente": "BIGINT",
+        "categoria": "VARCHAR",
+        "estado": "VARCHAR",
+        "quantidade": "BIGINT",
+        "preco_unitario": "DOUBLE",
+        "valor": "DOUBLE",
+        "status": "VARCHAR",
+        "data_pedido": "DATE"
+      },
+      "rows": [
+        [1001, 1, "Notebook", "SP", 1, 3500.0, 3500.0, "APROVADO", "2026-06-03"],
+        [1002, 2, "Monitor", "RJ", 2, 1200.0, 2400.0, "PENDENTE", "2026-06-10"],
+        [1003, 3, "Acessórios", "SP", 3, 90.0, 270.0, "APROVADO", "2026-07-01"],
+        [1004, 999, "Acessórios", null, 1, 90.0, 90.0, "APROVADO", "2026-07-04"]
+      ]
+    },
+    "clientes_metricas": {
+      "schema": {
+        "id_cliente": "BIGINT",
+        "estado": "VARCHAR",
+        "faturamento": "DOUBLE"
+      },
+      "rows": [
+        [1, "SP", 3500.0],
+        [3, "SP", 3500.0],
+        [2, "RJ", 2400.0],
+        [4, "MG", 800.0]
+      ]
+    },
+    "clientes_historico": {
+      "schema": {
+        "id_cliente": "BIGINT",
+        "nome": "VARCHAR",
+        "estado": "VARCHAR",
+        "atualizado_em": "TIMESTAMP"
+      },
+      "rows": [
+        [1, "Ana", "RJ", "2026-05-01 09:00:00"],
+        [1, "Ana", "SP", "2026-07-01 12:00:00"],
+        [2, "Bruno", "MG", "2026-04-01 10:00:00"],
+        [2, "Bruno", "RJ", "2026-07-02 08:30:00"]
+      ]
+    },
+    "pedidos_historico": {
+      "schema": {
+        "id_pedido": "BIGINT",
+        "status": "VARCHAR",
+        "atualizado_em": "TIMESTAMP"
+      },
+      "rows": [
+        [1001, "PENDENTE", "2026-06-03 09:00:00"],
+        [1001, "APROVADO", "2026-06-03 10:00:00"],
+        [1002, "PENDENTE", "2026-06-10 11:00:00"]
+      ]
+    },
+    "pedidos_validos": {
+      "schema": {
+        "id_pedido": "BIGINT",
+        "id_cliente": "BIGINT",
+        "ano_mes": "VARCHAR",
+        "valor": "DOUBLE"
+      },
+      "rows": [
+        [1001, 1, "2026-06", 3500.0],
+        [1003, 3, "2026-07", 270.0],
+        [1004, 999, "2026-07", 90.0]
+      ]
+    },
+    "silver": {
+      "schema": {
+        "id_pedido": "BIGINT",
+        "id_cliente": "BIGINT",
+        "categoria": "VARCHAR",
+        "estado": "VARCHAR",
+        "status": "VARCHAR",
+        "data_pedido": "DATE",
+        "valor": "DOUBLE"
+      },
+      "rows": [
+        [1001, 1, "Notebook", "SP", "APROVADO", "2026-06-03", 3500.0],
+        [1002, 2, "Monitor", "RJ", "PENDENTE", "2026-06-10", 2400.0],
+        [1003, 3, "Acessórios", "SP", "APROVADO", "2026-07-01", 270.0],
+        [1004, 999, "Acessórios", null, "APROVADO", "2026-07-04", 90.0]
+      ]
+    },
+    "transformacao_cara": {
+      "schema": {
+        "estado": "VARCHAR",
+        "categoria": "VARCHAR",
+        "valor": "DOUBLE"
+      },
+      "rows": [
+        ["SP", "Notebook", 3500.0],
+        ["SP", "Acessórios", 270.0],
+        ["RJ", "Monitor", 2400.0],
+        ["MG", "Acessórios", 90.0]
+      ]
+    }
+  },
+  "virtualFiles": {
+    "/dados/pedidos.csv": "pedidos",
+    "/dados/pedidos.parquet": "pedidos",
+    "/dados/pedidos": "pedidos"
+  }
+}

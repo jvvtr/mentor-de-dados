@@ -1,1282 +1,2013 @@
 (function () {
   "use strict";
 
+  const code = (lines) => lines.join("\n");
+
+  const SOURCE = {
+    docs: {
+      label: "Documentação do Apache Spark 4.2.0",
+      url: "https://spark.apache.org/docs/4.2.0/",
+      type: "oficial"
+    },
+    quickstart: {
+      label: "Quickstart de DataFrames no PySpark",
+      url: "https://spark.apache.org/docs/4.2.0/api/python/getting_started/quickstart_df.html",
+      type: "oficial"
+    },
+    userGuide: {
+      label: "Guia de DataFrames PySpark",
+      url: "https://spark.apache.org/docs/4.2.0/api/python/user_guide/dataframes.html",
+      type: "oficial"
+    },
+    python: {
+      label: "Tutorial oficial de Python",
+      url: "https://docs.python.org/3/tutorial/",
+      type: "oficial"
+    },
+    sqlGuide: {
+      label: "Spark SQL, DataFrames and Datasets Guide",
+      url: "https://spark.apache.org/docs/4.2.0/sql-programming-guide.html",
+      type: "oficial"
+    },
+    sqlReference: {
+      label: "Referência do Spark SQL",
+      url: "https://spark.apache.org/docs/4.2.0/sql-ref.html",
+      type: "oficial"
+    },
+    functions: {
+      label: "Funções nativas do Spark SQL",
+      url: "https://spark.apache.org/docs/4.2.0/sql-ref-functions-builtin.html",
+      type: "oficial"
+    },
+    nulls: {
+      label: "Semântica de NULL no Spark SQL",
+      url: "https://spark.apache.org/docs/4.2.0/sql-ref-null-semantics.html",
+      type: "oficial"
+    },
+    ansi: {
+      label: "Conformidade ANSI do Spark SQL",
+      url: "https://spark.apache.org/docs/4.2.0/sql-ref-ansi-compliance.html",
+      type: "oficial"
+    },
+    dataSources: {
+      label: "Fontes de dados do Spark SQL",
+      url: "https://spark.apache.org/docs/4.2.0/sql-data-sources.html",
+      type: "oficial"
+    },
+    cluster: {
+      label: "Cluster Mode Overview",
+      url: "https://spark.apache.org/docs/4.2.0/cluster-overview.html",
+      type: "oficial"
+    },
+    performance: {
+      label: "Spark SQL Performance Tuning",
+      url: "https://spark.apache.org/docs/4.2.0/sql-performance-tuning.html",
+      type: "oficial"
+    },
+    webUi: {
+      label: "Spark Web UI",
+      url: "https://spark.apache.org/docs/4.2.0/web-ui.html",
+      type: "oficial"
+    },
+    testing: {
+      label: "Testing PySpark",
+      url: "https://spark.apache.org/docs/4.2.0/api/python/getting_started/testing_pyspark.html",
+      type: "oficial"
+    },
+    streaming: {
+      label: "Structured Streaming Programming Guide",
+      url: "https://spark.apache.org/docs/4.2.0/streaming/index.html",
+      type: "oficial"
+    },
+    examples: {
+      label: "Exemplos no repositório Apache Spark",
+      url: "https://github.com/apache/spark/tree/v4.2.0/examples/src/main/python/sql",
+      type: "open-source"
+    },
+    parquet: {
+      label: "Documentação do Apache Parquet",
+      url: "https://parquet.apache.org/docs/overview/",
+      type: "open-source"
+    },
+    zoomcamp: {
+      label: "Data Engineering Zoomcamp — Batch Processing",
+      url: "https://github.com/DataTalksClub/data-engineering-zoomcamp/tree/main/06-batch",
+      type: "gratuito"
+    },
+    sparkInternals: {
+      label: "The Internals of Apache Spark",
+      url: "https://github.com/japila-books/apache-spark-internals",
+      type: "open-source"
+    },
+    sqlInternals: {
+      label: "The Internals of Spark SQL",
+      url: "https://github.com/japila-books/spark-sql-internals",
+      type: "open-source"
+    },
+    chispa: {
+      label: "chispa — testes de DataFrames",
+      url: "https://github.com/MrPowers/chispa",
+      type: "open-source"
+    },
+    nycTlc: {
+      label: "NYC TLC Trip Record Data",
+      url: "https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page",
+      type: "dados-publicos"
+    },
+    delta: {
+      label: "Documentação do Delta Lake",
+      url: "https://docs.delta.io/",
+      type: "open-source-opcional"
+    }
+  };
+
+  function assessment(inputs, expectedSchema, expectedRows, edgeCases, planChecks) {
+    return {
+      entrypoint: "resultado",
+      inputs,
+      expectedSchema,
+      expectedRows,
+      edgeCases: edgeCases || [],
+      planChecks: planChecks || [],
+      checks: ["sintaxe suportada", "colunas de saída", "linhas da fixture", "ordenação declarada"]
+    };
+  }
+
   const lessons = [
     {
       id: 1,
       week: 1,
-      title: "O que é Apache Spark?",
-      subtitle: "Do banco SQL ao processamento distribuído",
-      objective: "Entender por que o Spark existe e como driver, executors e cluster trabalham juntos.",
-      intro: "Spark não é um banco de dados. É um mecanismo que coordena o processamento de dados, dividindo o trabalho entre várias máquinas quando necessário.",
-      analogy: "No Power BI, o mecanismo processa etapas da consulta. No Spark, o driver organiza um plano e distribui partes dele aos executors — como um coordenador repartindo uma consulta grande entre várias equipes.",
+      title: "Spark para quem já conhece SQL",
+      subtitle: "Da consulta em um banco para uma engine de processamento",
+      objective: "Distinguir engine, armazenamento e linguagem e executar a primeira transformação Spark.",
+      intro: "Apache Spark não é um banco de dados nem uma linguagem. É uma engine que lê dados de diferentes fontes, cria um plano de execução e processa esse plano localmente ou em várias máquinas.",
+      analogy: "Em SQL, você descreve o resultado e o banco escolhe um plano. No Spark, você também descreve transformações; a diferença é que a engine foi desenhada para dividir o trabalho em partições e distribuí-lo quando necessário.",
       concepts: [
-        { title: "Engine de processamento", text: "O Spark lê dados de outras fontes, transforma-os e grava resultados. Ele não precisa ser o lugar onde os dados ficam armazenados." },
-        { title: "Driver", text: "É o coordenador da aplicação: interpreta seu código, cria o plano de execução e acompanha as tarefas." },
-        { title: "Executors", text: "São os trabalhadores: recebem tarefas, processam partições e devolvem resultados ao driver." },
-        { title: "Cluster", text: "É o conjunto de recursos de computação no qual driver e executors são executados." }
+        { title: "Engine", text: "Executa transformações e ações sobre dados, mas não precisa ser o local permanente de armazenamento." },
+        { title: "SQL e PySpark", text: "São duas interfaces para expressar planos que podem ser analisados pela mesma engine Spark SQL." },
+        { title: "Local e cluster", text: "O mesmo código pode usar threads de uma máquina ou recursos de um cluster, respeitadas as diferenças de ambiente." },
+        { title: "Driver e executors", text: "O driver coordena o plano; executors realizam tasks sobre partições. Por enquanto, basta reconhecer os papéis." }
       ],
-      sql: `-- Ideia conhecida: uma consulta descreve o resultado
-SELECT categoria, SUM(valor) AS faturamento
-FROM vendas
-GROUP BY categoria;`,
-      pyspark: `# No PySpark, você descreve a mesma transformação
-from pyspark.sql import functions as F
-
-resultado = (
-    vendas
-    .groupBy("categoria")
-    .agg(F.sum("valor").alias("faturamento"))
-)
-
-resultado.show()  # a action dispara o processamento`,
-      exercise: "Explique com suas palavras o papel do driver e dos executors. Depois, execute a primeira linha abaixo em um notebook Databricks e observe o resultado.",
-      starter: `df = spark.range(10)
-df.show()`,
-      hint: "Pense no driver como quem planeja e nos executors como quem executa os pedaços do trabalho.",
-      solution: `# Resposta-modelo:
-# O driver cria e coordena o plano.
-# Os executors processam as partições em paralelo.
-
-df = spark.range(10)
-df.show()`,
+      sql: code([
+        "-- A intenção conhecida: resumir vendas por categoria",
+        "SELECT categoria, SUM(valor) AS faturamento",
+        "FROM vendas",
+        "GROUP BY categoria;"
+      ]),
+      pyspark: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = (",
+        "    vendas.groupBy(\"categoria\")",
+        "    .agg(F.sum(\"valor\").alias(\"faturamento\"))",
+        ")",
+        "",
+        "resultado.show()"
+      ]),
+      exercise: "Crie spark.range(3), renomeie id para numero, acrescente dobro = numero * 2 e grave o DataFrame em resultado.",
+      starter: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = spark.range(3)"
+      ]),
+      hint: "Use withColumnRenamed para id e withColumn com F.col para calcular dobro.",
+      solution: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = (",
+        "    spark.range(3)",
+        "    .withColumnRenamed(\"id\", \"numero\")",
+        "    .withColumn(\"dobro\", F.col(\"numero\") * 2)",
+        "    .orderBy(\"numero\")",
+        ")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT numero",
+        "FROM VALUES (0), (1), (2) AS numeros(numero);"
+      ]),
+      sqlSolution: code([
+        "SELECT numero, numero * 2 AS dobro",
+        "FROM VALUES (0), (1), (2) AS numeros(numero)",
+        "ORDER BY numero;"
+      ]),
+      expected: {
+        columns: ["numero", "dobro"],
+        rows: [[0, 0], [1, 2], [2, 4]],
+        ordered: true
+      },
+      tables: [],
+      assessment: assessment(
+        [{ name: "spark", schema: "SparkSession local; sem DataFrame de entrada" }],
+        "numero: long non-null, dobro: long non-null",
+        [{ numero: 0, dobro: 0 }, { numero: 1, dobro: 2 }, { numero: 2, dobro: 4 }],
+        ["A função deve devolver um DataFrame, não uma lista.", "A solução não deve depender da ordem física das partições."]
+      ),
+      sources: [SOURCE.docs, SOURCE.quickstart, SOURCE.zoomcamp],
       quiz: {
-        question: "Qual frase descreve melhor o Apache Spark?",
-        options: ["Um banco de dados relacional", "Um mecanismo distribuído de processamento", "Uma linguagem que substitui SQL", "Uma ferramenta exclusiva do Power BI"],
-        correct: 1,
-        explanation: "Spark é uma engine de processamento. Ele pode consultar várias fontes e usar SQL, mas não é, por si só, um banco de dados."
+        question: "Qual descrição é correta?",
+        options: ["Spark é um banco relacional", "PySpark substitui SQL", "Spark é uma engine que pode executar planos descritos em SQL ou PySpark", "Spark exige sempre várias máquinas"],
+        correct: 2,
+        explanation: "Spark é uma engine. SQL e PySpark são interfaces, e o modo local permite estudar sem um cluster real."
       }
     },
     {
       id: 2,
       week: 1,
-      title: "PySpark e DataFrames",
-      subtitle: "A API Python que conversa com o Spark",
-      objective: "Criar um DataFrame e reconhecer SparkSession, schema, linhas e colunas.",
-      intro: "PySpark é a interface Python do Apache Spark. Você escreve Python, e a API transforma suas instruções em um plano que a engine Spark executa.",
-      analogy: "Um DataFrame lembra uma tabela SQL ou uma tabela no Power Query. A diferença é que ele representa um plano distribuído e imutável, não uma planilha carregada na sua tela.",
+      title: "SparkSession, DataFrame e temp view",
+      subtitle: "A ponte mais curta entre uma tabela SQL e o Spark",
+      objective: "Reconhecer SparkSession, criar uma temp view e consultar um DataFrame com Spark SQL.",
+      intro: "SparkSession é a porta de entrada da aplicação. Um DataFrame possui linhas, colunas e schema; uma temp view dá a esse DataFrame um nome que pode ser usado em uma consulta SQL durante a sessão.",
+      analogy: "Uma temp view se parece com uma view de sessão: ela não copia os dados, apenas registra um nome para o plano representado pelo DataFrame.",
       concepts: [
-        { title: "SparkSession", text: "É a porta de entrada para criar DataFrames, ler arquivos e executar Spark SQL. No Databricks, normalmente já existe como spark." },
-        { title: "DataFrame", text: "Uma coleção distribuída de dados organizados em colunas com nomes e tipos." },
-        { title: "Schema", text: "Define os nomes e tipos das colunas. printSchema() permite inspecioná-lo." },
-        { title: "Imutabilidade", text: "Cada transformação devolve um novo DataFrame; o original não é alterado." }
+        { title: "SparkSession", text: "Cria DataFrames, acessa fontes, executa SQL e controla configurações da sessão." },
+        { title: "DataFrame", text: "Representa dados tabulares e um plano de transformação; operações devolvem novos DataFrames." },
+        { title: "Schema", text: "Define nomes, tipos e nulabilidade. printSchema ajuda a inspecioná-lo." },
+        { title: "Temp view", text: "Existe durante a sessão e permite alternar entre SQL e DataFrame API sem trocar de engine." }
       ],
-      sql: `-- Uma tabela possui colunas tipadas
-SELECT id_cliente, nome, estado
-FROM clientes;`,
-      pyspark: `dados = [
-    (1, "Ana", "SP"),
-    (2, "Bruno", "RJ"),
-    (3, "Carla", "MG")
-]
-
-clientes = spark.createDataFrame(
-    dados,
-    ["id_cliente", "nome", "estado"]
-)
-
-clientes.show()
-clientes.printSchema()
-clientes.count()`,
-      exercise: "Crie um DataFrame com três produtos contendo id, categoria e preço. Mostre as linhas e o schema.",
-      starter: `produtos = spark.createDataFrame([
-    # complete aqui
-], ["id_produto", "categoria", "preco"])
-
-produtos.show()
-produtos.printSchema()`,
-      hint: "Cada linha pode ser uma tupla como (101, \"Notebook\", 3500.0).",
-      solution: `produtos = spark.createDataFrame([
-    (101, "Notebook", 3500.0),
-    (102, "Monitor", 1200.0),
-    (103, "Mouse", 90.0)
-], ["id_produto", "categoria", "preco"])
-
-produtos.show()
-produtos.printSchema()`,
+      sql: code([
+        "SELECT id_cliente, nome",
+        "FROM clientes",
+        "WHERE ativo = true",
+        "ORDER BY id_cliente;"
+      ]),
+      pyspark: code([
+        "clientes.createOrReplaceTempView(\"clientes\")",
+        "",
+        "resultado = spark.sql(\"\"\"",
+        "  SELECT id_cliente, nome",
+        "  FROM clientes",
+        "  WHERE ativo = true",
+        "  ORDER BY id_cliente",
+        "\"\"\")"
+      ]),
+      exercise: "Registre clientes como vw_clientes e grave em resultado uma consulta spark.sql com id_cliente e nome dos ativos, ordenados por id_cliente.",
+      starter: code([
+        "clientes.createOrReplaceTempView(\"vw_clientes\")",
+        "",
+        "resultado = clientes"
+      ]),
+      hint: "Use clientes.createOrReplaceTempView e clientes.sparkSession.sql.",
+      solution: code([
+        "clientes.createOrReplaceTempView(\"vw_clientes\")",
+        "resultado = clientes.sparkSession.sql(\"\"\"",
+        "    SELECT id_cliente, nome",
+        "    FROM vw_clientes",
+        "    WHERE ativo = true",
+        "    ORDER BY id_cliente",
+        "\"\"\")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT id_cliente, nome, ativo",
+        "FROM clientes;"
+      ]),
+      sqlSolution: code([
+        "SELECT id_cliente, nome",
+        "FROM clientes",
+        "WHERE ativo = true",
+        "ORDER BY id_cliente;"
+      ]),
+      expected: {
+        columns: ["id_cliente", "nome"],
+        rows: [[1, "Ana"], [3, "Caio"]],
+        ordered: true
+      },
+      tables: [
+        { name: "clientes", columns: ["id_cliente", "nome", "ativo"], rows: [[2, "Bia", false], [1, "Ana", true], [3, "Caio", true]] }
+      ],
+      assessment: assessment(
+        [{ name: "clientes", schema: "id_cliente: long, nome: string, ativo: boolean; [(2,'Bia',false),(1,'Ana',true),(3,'Caio',true)]" }],
+        "id_cliente: long, nome: string",
+        [{ id_cliente: 1, nome: "Ana" }, { id_cliente: 3, nome: "Caio" }],
+        ["Nenhum cliente ativo deve produzir DataFrame vazio com o mesmo schema.", "Colunas extras não fazem parte do contrato."]
+      ),
+      sources: [SOURCE.quickstart, SOURCE.sqlGuide, SOURCE.examples],
       quiz: {
-        question: "Qual objeto normalmente é a porta de entrada para trabalhar com DataFrames?",
-        options: ["SparkSession", "ExecutorSession", "PowerQuery", "SQLContext obrigatório"],
-        correct: 0,
-        explanation: "A SparkSession, normalmente disponível como spark no Databricks, centraliza leitura, criação de DataFrames e Spark SQL."
+        question: "O que createOrReplaceTempView faz?",
+        options: ["Grava uma tabela permanente", "Associa um nome temporário a um DataFrame", "Converte o DataFrame em lista Python", "Inicia um novo cluster"],
+        correct: 1,
+        explanation: "A temp view permite consultar o DataFrame com SQL durante a sessão e não implica gravação permanente."
       }
     },
     {
       id: 3,
       week: 1,
-      title: "Selecionar e filtrar",
-      subtitle: "SELECT e WHERE na DataFrame API",
-      objective: "Traduzir consultas com seleção, filtro, alias e ordenação entre SQL e PySpark.",
-      intro: "As operações que você mais usa em SQL têm equivalentes diretos na DataFrame API. O ganho inicial vem de aprender a ler as duas sintaxes como o mesmo plano lógico.",
-      analogy: "select() equivale ao SELECT; filter() ou where() equivalem ao WHERE; orderBy() equivale ao ORDER BY.",
+      title: "Python mínimo para PySpark",
+      subtitle: "Ler imports, funções, métodos e encadeamentos sem estudar Python inteiro",
+      objective: "Interpretar a sintaxe Python usada na DataFrame API e escrever uma transformação simples.",
+      intro: "Para começar com PySpark, você não precisa dominar Python avançado. Precisa reconhecer imports, variáveis, funções, indentação, argumentos nomeados e chamadas de método.",
+      analogy: "Uma sequência de métodos é semelhante a uma cadeia de CTEs: cada etapa recebe um resultado tabular e descreve a próxima transformação.",
       concepts: [
-        { title: "select", text: "Escolhe e calcula colunas do resultado." },
-        { title: "filter / where", text: "Mantém somente as linhas que atendem a uma condição." },
-        { title: "col", text: "Cria uma expressão de coluna explícita, útil para cálculos e condições." },
-        { title: "alias", text: "Renomeia uma coluna calculada no resultado." }
+        { title: "Import", text: "from pyspark.sql import functions as F cria um apelido para as funções nativas." },
+        { title: "Função", text: "def agrupa entradas e devolve uma saída reutilizável; return entrega o DataFrame resultante." },
+        { title: "Método", text: "produtos.select(...) chama uma operação pertencente ao DataFrame produtos." },
+        { title: "Imutabilidade", text: "withColumn não altera o objeto original; produz um novo DataFrame." }
       ],
-      sql: `SELECT
-  id_pedido,
-  quantidade * preco_unitario AS valor
-FROM pedidos
-WHERE status = 'APROVADO'
-  AND quantidade >= 2
-ORDER BY valor DESC;`,
-      pyspark: `from pyspark.sql import functions as F
-
-resultado = (
-    pedidos
-    .filter(
-        (F.col("status") == "APROVADO") &
-        (F.col("quantidade") >= 2)
-    )
-    .select(
-        "id_pedido",
-        (F.col("quantidade") * F.col("preco_unitario"))
-            .alias("valor")
-    )
-    .orderBy(F.col("valor").desc())
-)`,
-      exercise: "Traduza para PySpark: selecione nome e estado dos clientes de SP, ordenados por nome.",
-      starter: `clientes_sp = (
-    clientes
-    # complete a sequência
-)`,
-      hint: "Use filter(F.col(\"estado\") == \"SP\"), select(...) e orderBy(...).",
-      solution: `from pyspark.sql import functions as F
-
-clientes_sp = (
-    clientes
-    .filter(F.col("estado") == "SP")
-    .select("nome", "estado")
-    .orderBy("nome")
-)
-
-clientes_sp.show()`,
+      sql: code([
+        "SELECT id_produto,",
+        "       quantidade * preco_unitario AS subtotal",
+        "FROM itens;"
+      ]),
+      pyspark: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "def calcular_subtotal(itens):",
+        "    return itens.select(",
+        "        \"id_produto\",",
+        "        (F.col(\"quantidade\") * F.col(\"preco_unitario\")).alias(\"subtotal\")",
+        "    )"
+      ]),
+      exercise: "Grave em resultado id_produto e subtotal = quantidade * preco_unitario. Preserve o DataFrame de entrada.",
+      starter: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = itens"
+      ]),
+      hint: "Dentro de select, uma expressão de coluna pode receber alias.",
+      solution: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = itens.select(",
+        "    \"id_produto\",",
+        "    (F.col(\"quantidade\") * F.col(\"preco_unitario\")).alias(\"subtotal\")",
+        ")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT * FROM itens;"
+      ]),
+      sqlSolution: code([
+        "SELECT id_produto, quantidade * preco_unitario AS subtotal",
+        "FROM itens;"
+      ]),
+      expected: {
+        columns: ["id_produto", "subtotal"],
+        rows: [[10, 15.0], [20, 12.0]],
+        ordered: false
+      },
+      tables: [
+        { name: "itens", columns: ["id_produto", "quantidade", "preco_unitario"], rows: [[10, 2, 7.5], [20, 3, 4.0]] }
+      ],
+      assessment: assessment(
+        [{ name: "itens", schema: "id_produto: long, quantidade: long, preco_unitario: double; [(10,2,7.5),(20,3,4.0)]" }],
+        "id_produto: long, subtotal: double",
+        [{ id_produto: 10, subtotal: 15.0 }, { id_produto: 20, subtotal: 12.0 }],
+        ["Entrada vazia deve manter o schema de saída.", "Quantidade zero deve resultar em subtotal 0.0."]
+      ),
+      sources: [SOURCE.python, SOURCE.userGuide, SOURCE.quickstart],
       quiz: {
-        question: "Ao executar pedidos.filter(...), o que acontece com o DataFrame pedidos?",
-        options: ["Ele é alterado permanentemente", "Ele é apagado da memória", "Ele permanece igual; um novo DataFrame é retornado", "Ele vira uma tabela SQL"],
-        correct: 2,
-        explanation: "DataFrames são imutáveis. filter retorna outro DataFrame que referencia o novo plano de transformação."
+        question: "O que withColumn retorna?",
+        options: ["O mesmo DataFrame alterado internamente", "Um novo DataFrame", "Uma lista Python", "Uma instrução SQL em texto"],
+        correct: 1,
+        explanation: "DataFrames são imutáveis do ponto de vista da API: transformações devolvem novos DataFrames."
       }
     },
     {
       id: 4,
       week: 1,
-      title: "Tipos, nulos e colunas calculadas",
-      subtitle: "Schema confiável antes da análise",
-      objective: "Corrigir tipos, tratar valores nulos e criar regras com when/otherwise.",
-      intro: "Grande parte dos erros de dados começa com um tipo incorreto ou um nulo tratado sem intenção. No Spark, o schema é parte central do contrato do dado.",
-      analogy: "É parecido com definir tipos no Power Query antes de criar medidas: um preço lido como texto pode invalidar todos os cálculos seguintes.",
+      title: "SELECT, WHERE e ORDER BY",
+      subtitle: "Traduzindo operações SQL para a DataFrame API",
+      objective: "Selecionar, filtrar, renomear e ordenar colunas usando expressões PySpark.",
+      intro: "As operações relacionais mais frequentes têm equivalentes diretos. O desafio inicial é lembrar que comparações em PySpark produzem expressões de coluna, não valores booleanos Python comuns.",
+      analogy: "select corresponde à projeção, filter ou where à seleção de linhas, alias ao AS e orderBy ao ORDER BY.",
       concepts: [
-        { title: "cast", text: "Converte uma coluna para outro tipo, como double, integer ou date." },
-        { title: "isNull / isNotNull", text: "Testa explicitamente a ausência de valor." },
-        { title: "fillna / dropna", text: "Preenche ou remove nulos de forma controlada." },
-        { title: "when / otherwise", text: "Expressa regras condicionais equivalentes a CASE WHEN." }
+        { title: "F.col", text: "Cria uma referência explícita a uma coluna e permite compor expressões." },
+        { title: "filter / where", text: "Recebem uma expressão de coluna booleana e são equivalentes." },
+        { title: "Operadores", text: "Use &, | e ~ para combinar condições, sempre com parênteses." },
+        { title: "Ordenação", text: "orderBy define uma ordem no resultado; sem ele, a ordem de linhas não é garantida." }
       ],
-      sql: `SELECT
-  id_produto,
-  CAST(preco AS DECIMAL(12,2)) AS preco,
-  CASE
-    WHEN preco IS NULL THEN 'SEM PREÇO'
-    WHEN preco >= 1000 THEN 'ALTO'
-    ELSE 'PADRÃO'
-  END AS faixa
-FROM produtos;`,
-      pyspark: `from pyspark.sql import functions as F
-
-tratado = (
-    produtos
-    .withColumn("preco", F.col("preco").cast("double"))
-    .withColumn(
-        "faixa",
-        F.when(F.col("preco").isNull(), "SEM PREÇO")
-         .when(F.col("preco") >= 1000, "ALTO")
-         .otherwise("PADRÃO")
-    )
-)`,
-      exercise: "Crie uma coluna valor = quantidade × preco_unitario. Se preco_unitario for nulo, use 0 antes do cálculo.",
-      starter: `pedidos_tratados = (
-    pedidos
-    # trate o nulo e crie valor
-)`,
-      hint: "Use fillna({\"preco_unitario\": 0}) e depois withColumn.",
-      solution: `from pyspark.sql import functions as F
-
-pedidos_tratados = (
-    pedidos
-    .fillna({"preco_unitario": 0})
-    .withColumn(
-        "valor",
-        F.col("quantidade") * F.col("preco_unitario")
-    )
-)`,
+      sql: code([
+        "SELECT nome, estado",
+        "FROM clientes",
+        "WHERE estado = 'SP' AND ativo = true",
+        "ORDER BY nome;"
+      ]),
+      pyspark: code([
+        "resultado = (",
+        "    clientes",
+        "    .filter((F.col(\"estado\") == \"SP\") & F.col(\"ativo\"))",
+        "    .select(\"nome\", \"estado\")",
+        "    .orderBy(\"nome\")",
+        ")"
+      ]),
+      exercise: "Mantenha clientes ativos de SP e grave em resultado somente nome e estado, ordenados por nome.",
+      starter: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = clientes"
+      ]),
+      hint: "Aplique filter antes de select e finalize com orderBy.",
+      solution: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = (",
+        "    clientes",
+        "    .filter((F.col(\"estado\") == \"SP\") & (F.col(\"ativo\") == True))",
+        "    .select(\"nome\", \"estado\")",
+        "    .orderBy(\"nome\")",
+        ")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT nome, estado FROM clientes;"
+      ]),
+      sqlSolution: code([
+        "SELECT nome, estado",
+        "FROM clientes",
+        "WHERE estado = 'SP' AND ativo = true",
+        "ORDER BY nome;"
+      ]),
+      expected: {
+        columns: ["nome", "estado"],
+        rows: [["Ana", "SP"], ["Zeca", "SP"]],
+        ordered: true
+      },
+      tables: [
+        { name: "clientes", columns: ["nome", "estado", "ativo"], rows: [["Zeca", "SP", true], ["Ana", "SP", true], ["Bia", "RJ", true], ["Caio", "SP", false]] }
+      ],
+      assessment: assessment(
+        [{ name: "clientes", schema: "nome: string, estado: string, ativo: boolean; [('Zeca','SP',true),('Ana','SP',true),('Bia','RJ',true),('Caio','SP',false)]" }],
+        "nome: string, estado: string",
+        [{ nome: "Ana", estado: "SP" }, { nome: "Zeca", estado: "SP" }],
+        ["Nome nulo continua válido se estado e ativo atenderem ao filtro.", "Entrada vazia deve devolver DataFrame vazio."]
+      ),
+      sources: [SOURCE.quickstart, SOURCE.userGuide, SOURCE.functions],
       quiz: {
-        question: "Por que declarar um schema pode ser melhor do que sempre inferi-lo?",
-        options: ["Porque elimina todas as linhas nulas", "Porque evita tipos incorretos e torna o contrato explícito", "Porque transforma CSV em Delta", "Porque impede qualquer erro de dados"],
-        correct: 1,
-        explanation: "Um schema explícito falha cedo, evita inferências erradas e documenta o formato esperado."
+        question: "Como combinar duas condições de coluna com E lógico?",
+        options: ["condicao1 and condicao2", "condicao1 && condicao2", "(condicao1) & (condicao2)", "AND(condicao1, condicao2)"],
+        correct: 2,
+        explanation: "Na DataFrame API, use & e coloque cada comparação entre parênteses."
       }
     },
     {
       id: 5,
       week: 1,
-      title: "Lazy evaluation e actions",
-      subtitle: "Por que o Spark adia o trabalho",
-      objective: "Distinguir transformations de actions e entender como o Spark monta um DAG.",
-      intro: "O Spark não executa cada linha assim que você a escreve. Ele acumula transformações, otimiza o conjunto e só processa quando uma action exige um resultado.",
-      analogy: "No Power Query, você monta várias etapas e aplica tudo ao atualizar. O Spark também observa o fluxo completo antes de executar.",
+      title: "Schema, tipos, NULL e modo ANSI",
+      subtitle: "O contrato que evita resultados silenciosamente errados",
+      objective: "Converter tipos, tratar nulos com intenção e reconhecer erros produzidos pelo modo ANSI.",
+      intro: "Um schema incorreto muda a semântica das operações. Spark SQL usa regras explícitas de tipos e nulos; no modo ANSI, entradas inválidas tendem a produzir erros em vez de resultados silenciosos.",
+      analogy: "CAST, COALESCE e CASE WHEN já fazem parte do repertório SQL. No PySpark, cast, coalesce e when constroem as mesmas expressões no plano.",
       concepts: [
-        { title: "Transformation", text: "Descreve um novo DataFrame: select, filter, join e groupBy são exemplos." },
-        { title: "Action", text: "Pede um resultado ou uma gravação: show, count, collect e write disparam execução." },
-        { title: "Lazy evaluation", text: "O adiamento permite ao otimizador combinar e reorganizar operações." },
-        { title: "DAG", text: "Grafo que representa dependências entre as etapas da computação." }
+        { title: "cast", text: "Converte uma expressão para outro tipo; conversões inválidas podem falhar no modo ANSI." },
+        { title: "NULL", text: "Representa valor desconhecido. Comparações comuns com nulo não retornam true." },
+        { title: "coalesce", text: "Retorna o primeiro valor não nulo entre suas expressões." },
+        { title: "Schema explícito", text: "Evita inferências inconsistentes e documenta o contrato de entrada." }
       ],
-      sql: `-- O banco recebe a consulta completa e cria um plano
-SELECT estado, COUNT(*) AS clientes
-FROM clientes
-WHERE estado IS NOT NULL
-GROUP BY estado;`,
-      pyspark: `plano = (
-    clientes
-    .filter("estado IS NOT NULL")  # transformation
-    .groupBy("estado")             # transformation
-    .count()                        # transformation
-)
-
-# Até aqui, o Spark apenas montou o plano.
-plano.show()  # action: agora ele executa`,
-      exercise: "No código abaixo, marque quais linhas são transformations e qual linha é a action que dispara o trabalho.",
-      starter: `ativos = clientes.filter("status = 'ATIVO'")
-nomes = ativos.select("nome")
-ordenados = nomes.orderBy("nome")
-total = ordenados.count()`,
-      hint: "As três primeiras devolvem DataFrames. A última devolve um número ao programa.",
-      solution: `ativos = clientes.filter("status = 'ATIVO'")  # transformation
-nomes = ativos.select("nome")               # transformation
-ordenados = nomes.orderBy("nome")            # transformation
-total = ordenados.count()                     # action`,
+      sql: code([
+        "SELECT id_item,",
+        "       quantidade * COALESCE(CAST(preco AS DOUBLE), 0.0) AS valor",
+        "FROM itens;"
+      ]),
+      pyspark: code([
+        "resultado = itens.select(",
+        "    \"id_item\",",
+        "    (",
+        "        F.col(\"quantidade\") *",
+        "        F.coalesce(F.col(\"preco\").cast(\"double\"), F.lit(0.0))",
+        "    ).alias(\"valor\")",
+        ")"
+      ]),
+      exercise: "Converta preco string para double, use 0.0 quando for nulo e grave em resultado id_item e valor = quantidade * preco convertido.",
+      starter: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = itens"
+      ]),
+      hint: "Crie a expressão de preço com F.coalesce(F.col('preco').cast('double'), F.lit(0.0)).",
+      solution: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "preco = F.coalesce(F.col(\"preco\").cast(\"double\"), F.lit(0.0))",
+        "resultado = itens.select(",
+        "    \"id_item\",",
+        "    (F.col(\"quantidade\") * preco).alias(\"valor\")",
+        ")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT id_item, quantidade, preco FROM itens;"
+      ]),
+      sqlSolution: code([
+        "SELECT id_item,",
+        "       quantidade * COALESCE(CAST(preco AS DOUBLE), 0.0) AS valor",
+        "FROM itens;"
+      ]),
+      expected: {
+        columns: ["id_item", "valor"],
+        rows: [[1, 21.0], [2, 0.0], [3, 0.0]],
+        ordered: false
+      },
+      tables: [
+        { name: "itens", columns: ["id_item", "quantidade", "preco"], rows: [[1, 2, "10.50"], [2, 3, null], [3, 0, "7.00"]] }
+      ],
+      assessment: assessment(
+        [{ name: "itens", schema: "id_item: long, quantidade: long, preco: string; [(1,2,'10.50'),(2,3,null),(3,0,'7.00')]" }],
+        "id_item: long, valor: double",
+        [{ id_item: 1, valor: 21.0 }, { id_item: 2, valor: 0.0 }, { id_item: 3, valor: 0.0 }],
+        ["Com ANSI ativo, texto não numérico deve produzir erro de cast explicável.", "Preço nulo deve virar 0.0; quantidade nula permanece nula."]
+      ),
+      sources: [SOURCE.userGuide, SOURCE.nulls, SOURCE.ansi],
       quiz: {
-        question: "Qual operação abaixo dispara o processamento?",
-        options: ["filter", "select", "withColumn", "count"],
-        correct: 3,
-        explanation: "count é uma action porque precisa devolver um resultado. As outras apenas estendem o plano."
+        question: "Qual afirmação sobre NULL está correta?",
+        options: ["NULL = NULL sempre é true", "COUNT(coluna) conta todos os nulos", "COALESCE pode escolher o primeiro valor não nulo", "NULL é o mesmo que zero"],
+        correct: 2,
+        explanation: "COALESCE percorre as expressões e retorna a primeira não nula. NULL não equivale a zero nem a string vazia."
       }
     },
     {
       id: 6,
       week: 2,
-      title: "Ler CSV e Parquet",
-      subtitle: "A entrada do seu pipeline",
-      objective: "Ler arquivos com opções e schema, reconhecendo por que Parquet favorece análises.",
-      intro: "Spark conecta-se a muitos formatos. Para análise, Parquet costuma superar CSV porque guarda tipos e organiza os dados por coluna.",
-      analogy: "CSV é como uma exportação plana que precisa ser interpretada toda vez. Parquet se aproxima de um armazenamento analítico já tipado e organizado.",
+      title: "Ler CSV, JSON e Parquet",
+      subtitle: "Transformar arquivos em DataFrames com schema previsível",
+      objective: "Usar DataFrameReader, opções de leitura e schema explícito e explicar por que Parquet favorece análise.",
+      intro: "Arquivos não carregam todos o mesmo nível de informação. CSV precisa de opções e tipos; JSON pode conter estruturas; Parquet preserva schema e organiza valores por coluna.",
+      analogy: "Uma tabela possui catálogo e tipos. Ao ler um arquivo, você precisa fornecer ou recuperar esse contrato antes de tratá-lo como uma relação confiável.",
       concepts: [
-        { title: "DataFrameReader", text: "A interface spark.read configura formato, opções e caminho." },
-        { title: "CSV", text: "Formato textual, simples, sem tipos nativos e normalmente maior." },
-        { title: "Parquet", text: "Formato colunar, comprimido e tipado; permite ler apenas colunas necessárias." },
-        { title: "Schema explícito", text: "Evita uma leitura extra para inferência e reduz ambiguidades." }
+        { title: "DataFrameReader", text: "spark.read configura formato, opções, schema e caminho antes de criar o DataFrame." },
+        { title: "Schema explícito", text: "Evita inferir tipos a cada leitura e faz entradas inválidas aparecerem de forma previsível." },
+        { title: "CSV e JSON", text: "São formatos textuais; opções como header, sep e dateFormat mudam a interpretação." },
+        { title: "Parquet", text: "É colunar, tipado e comprimido, permitindo ler apenas colunas necessárias em muitos cenários." }
       ],
-      sql: `-- Em Spark SQL, uma tabela pode apontar para arquivos
-CREATE OR REPLACE TEMP VIEW pedidos_csv
-USING csv
-OPTIONS (path '/dados/pedidos.csv', header 'true');`,
-      pyspark: `pedidos_csv = (
-    spark.read
-    .option("header", True)
-    .option("inferSchema", True)
-    .csv("/dados/pedidos.csv")
-)
-
-pedidos_parquet = spark.read.parquet(
-    "/dados/pedidos.parquet"
-)
-
-pedidos_parquet.printSchema()`,
-      exercise: "Escreva a leitura de um CSV com cabeçalho e separador ponto e vírgula. Em seguida, selecione apenas id_pedido e status.",
-      starter: `df = (
-    spark.read
-    # configure e leia o arquivo
-)
-
-resultado = df.select(...)`,
-      hint: "Use option(\"header\", True), option(\"sep\", \";\") e csv(caminho).",
-      solution: `df = (
-    spark.read
-    .option("header", True)
-    .option("sep", ";")
-    .option("inferSchema", True)
-    .csv("/dados/pedidos.csv")
-)
-
-resultado = df.select("id_pedido", "status")`,
+      sql: code([
+        "SELECT id_pedido, status",
+        "FROM pedidos_arquivo",
+        "WHERE status = 'APROVADO';"
+      ]),
+      pyspark: code([
+        "pedidos = (",
+        "    spark.read.schema(schema)",
+        "    .option(\"header\", True)",
+        "    .option(\"sep\", \";\")",
+        "    .csv(caminho)",
+        ")",
+        "resultado = pedidos.select(\"id_pedido\", \"status\")"
+      ]),
+      exercise: "Leia o CSV indicado por caminho com cabeçalho, separador ponto e vírgula e o schema fornecido. Devolva apenas id_pedido e status na variável resultado.",
+      starter: code([
+        "pedidos = (",
+        "    spark.read.schema(schema)",
+        "    # configure header, separador e leitura",
+        ")",
+        "resultado = pedidos"
+      ]),
+      hint: "Encadeie option('header', True), option('sep', ';'), csv(caminho) e select.",
+      solution: code([
+        "pedidos = (",
+        "    spark.read.schema(schema)",
+        "    .option(\"header\", True)",
+        "    .option(\"sep\", \";\")",
+        "    .csv(caminho)",
+        ")",
+        "resultado = pedidos.select(\"id_pedido\", \"status\")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT *",
+        "FROM pedidos_arquivo;"
+      ]),
+      sqlSolution: code([
+        "SELECT id_pedido, status",
+        "FROM pedidos_arquivo;"
+      ]),
+      expected: {
+        columns: ["id_pedido", "status"],
+        rows: [[1, "APROVADO"], [2, "PENDENTE"]],
+        ordered: false
+      },
+      tables: [
+        {
+          name: "pedidos_arquivo",
+          columns: ["id_pedido", "status", "valor"],
+          rows: [[1, "APROVADO", 10.5], [2, "PENDENTE", 7.0]]
+        }
+      ],
+      assessment: assessment(
+        [
+          { name: "caminho", schema: "CSV temporário: id_pedido;status;valor com duas linhas" },
+          { name: "schema", schema: "id_pedido: long non-null, status: string, valor: double" }
+        ],
+        "id_pedido: long, status: string",
+        [{ id_pedido: 1, status: "APROVADO" }, { id_pedido: 2, status: "PENDENTE" }],
+        ["Arquivo apenas com cabeçalho deve gerar DataFrame vazio.", "Separador incorreto deve ser diagnosticado pelo schema/resultado."]
+      ),
+      sources: [SOURCE.dataSources, SOURCE.parquet, SOURCE.zoomcamp],
       quiz: {
-        question: "Por que Parquet costuma ser melhor para leituras analíticas repetidas?",
-        options: ["Porque aceita apenas números", "Porque é colunar, comprimido e guarda tipos", "Porque não possui schema", "Porque sempre cabe na memória"],
-        correct: 1,
-        explanation: "Parquet permite column pruning, compressão eficiente e preserva o schema, reduzindo leitura e interpretação."
+        question: "Qual vantagem central do Parquet para análise?",
+        options: ["É sempre legível em editor de texto", "Não possui schema", "É colunar e preserva tipos", "Dispensa validação"],
+        correct: 2,
+        explanation: "Parquet armazena dados por coluna e preserva tipos, favorecendo leitura seletiva e compressão."
       }
     },
     {
       id: 7,
       week: 2,
-      title: "Spark SQL na prática",
-      subtitle: "Seu SQL executado pela engine Spark",
-      objective: "Criar views temporárias e alternar entre Spark SQL e a DataFrame API.",
-      intro: "Spark SQL é o módulo do Spark para dados estruturados. Você pode consultar DataFrames com SQL sem mudar de engine.",
-      analogy: "Uma temp view dá um nome tabular a um DataFrame. Para quem já conhece SQL, ela é a ponte mais rápida para começar no Spark.",
+      title: "Expressões, strings e datas",
+      subtitle: "Usar funções nativas antes de pensar em UDF",
+      objective: "Limpar texto e converter datas com funções que o Spark consegue analisar.",
+      intro: "Funções nativas viram expressões no plano Spark. Elas são preferíveis a funções Python linha a linha porque preservam informação para análise e otimização.",
+      analogy: "Assim como funções SQL aparecem na árvore da consulta, F.trim, F.upper e F.to_date ficam visíveis para o otimizador.",
       concepts: [
-        { title: "Temp view", text: "Uma visão temporária ligada à sessão, criada a partir de um DataFrame." },
-        { title: "spark.sql", text: "Executa uma string SQL e devolve outro DataFrame." },
-        { title: "Catalyst", text: "O otimizador analisa planos vindos tanto de SQL quanto da DataFrame API." },
-        { title: "Interoperabilidade", text: "Você pode começar em PySpark, consultar em SQL e continuar em PySpark." }
+        { title: "Funções nativas", text: "Operam como expressões distribuídas conhecidas pelo Catalyst." },
+        { title: "withColumn", text: "Adiciona ou substitui uma coluna em um novo DataFrame." },
+        { title: "when / otherwise", text: "Representa CASE WHEN na DataFrame API." },
+        { title: "Datas tipadas", text: "to_date e to_timestamp convertem strings usando formato explícito." }
       ],
-      sql: `CREATE OR REPLACE TEMP VIEW vw_pedidos AS
-SELECT * FROM parquet.\`/dados/pedidos\`;
-
-SELECT status, COUNT(*) AS quantidade
-FROM vw_pedidos
-GROUP BY status;`,
-      pyspark: `pedidos.createOrReplaceTempView("vw_pedidos")
-
-por_status = spark.sql("""
-    SELECT status, COUNT(*) AS quantidade
-    FROM vw_pedidos
-    GROUP BY status
-""")
-
-por_status.show()`,
-      exercise: "Registre o DataFrame clientes como vw_clientes e consulte a quantidade de clientes por estado usando spark.sql.",
-      starter: `clientes.createOrReplaceTempView(...)
-
-resultado = spark.sql("""
-    -- sua consulta
-""")`,
-      hint: "A consulta é SELECT estado, COUNT(*) ... GROUP BY estado.",
-      solution: `clientes.createOrReplaceTempView("vw_clientes")
-
-resultado = spark.sql("""
-    SELECT estado, COUNT(*) AS quantidade
-    FROM vw_clientes
-    GROUP BY estado
-    ORDER BY quantidade DESC
-""")`,
+      sql: code([
+        "SELECT id_cliente,",
+        "       UPPER(TRIM(nome)) AS nome_normalizado,",
+        "       TO_DATE(data_cadastro, 'yyyy-MM-dd') AS data_cadastro",
+        "FROM clientes;"
+      ]),
+      pyspark: code([
+        "resultado = clientes.select(",
+        "    \"id_cliente\",",
+        "    F.upper(F.trim(\"nome\")).alias(\"nome_normalizado\"),",
+        "    F.to_date(\"data_cadastro\", \"yyyy-MM-dd\").alias(\"data_cadastro\")",
+        ")"
+      ]),
+      exercise: "Crie resultado com id_cliente, nome_normalizado em maiúsculas sem espaços externos e data_cadastro convertida do formato yyyy-MM-dd.",
+      starter: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = clientes"
+      ]),
+      hint: "Combine F.upper(F.trim('nome')) e F.to_date('data_cadastro', 'yyyy-MM-dd').",
+      solution: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = clientes.select(",
+        "    \"id_cliente\",",
+        "    F.upper(F.trim(\"nome\")).alias(\"nome_normalizado\"),",
+        "    F.to_date(\"data_cadastro\", \"yyyy-MM-dd\").alias(\"data_cadastro\")",
+        ")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT id_cliente, nome, data_cadastro",
+        "FROM clientes;"
+      ]),
+      sqlSolution: code([
+        "SELECT id_cliente,",
+        "       UPPER(TRIM(nome)) AS nome_normalizado,",
+        "       TO_DATE(data_cadastro, 'yyyy-MM-dd') AS data_cadastro",
+        "FROM clientes;"
+      ]),
+      expected: {
+        columns: ["id_cliente", "nome_normalizado", "data_cadastro"],
+        rows: [[1, "ANA", "2026-01-05"], [2, null, "2026-02-10"]],
+        ordered: false
+      },
+      tables: [
+        {
+          name: "clientes",
+          columns: ["id_cliente", "nome", "data_cadastro"],
+          rows: [[1, " Ana ", "2026-01-05"], [2, null, "2026-02-10"]]
+        }
+      ],
+      assessment: assessment(
+        [{ name: "clientes", schema: "id_cliente: long, nome: string, data_cadastro: string" }],
+        "id_cliente: long, nome_normalizado: string, data_cadastro: date",
+        [{ id_cliente: 1, nome_normalizado: "ANA", data_cadastro: "2026-01-05" }, { id_cliente: 2, nome_normalizado: null, data_cadastro: "2026-02-10" }],
+        ["Nome nulo deve continuar nulo.", "Data inválida deve seguir a política ANSI configurada."]
+      ),
+      sources: [SOURCE.functions, SOURCE.userGuide, SOURCE.ansi],
       quiz: {
-        question: "Spark SQL e PySpark DataFrames usam mecanismos de execução totalmente diferentes?",
-        options: ["Sim, SQL não usa Spark", "Sim, PySpark ignora o otimizador", "Não, ambos geram planos processados pela engine Spark", "Somente no Power BI"],
-        correct: 2,
-        explanation: "As duas interfaces geram planos que passam pelo Catalyst e pela mesma engine. Você escolhe a sintaxe mais adequada."
+        question: "Por que preferir uma função nativa do Spark a uma UDF Python simples?",
+        options: ["Só funciona localmente", "O Catalyst entende e pode otimizar a expressão", "UDF sempre retorna string", "Elimina qualquer shuffle"],
+        correct: 1,
+        explanation: "Expressões nativas permanecem visíveis no plano e evitam uma fronteira Python desnecessária."
       }
     },
     {
       id: 8,
       week: 2,
-      title: "Agregações e métricas",
-      subtitle: "GROUP BY com a DataFrame API",
-      objective: "Calcular faturamento, ticket médio e clientes únicos com groupBy e agg.",
-      intro: "Agregações mudam a granularidade: várias linhas de pedidos viram uma linha por grupo, exatamente como em SQL.",
-      analogy: "Pense numa visualização do Power BI: as dimensões definem os grupos e as medidas definem os cálculos.",
+      title: "Agregações e granularidade",
+      subtitle: "GROUP BY com resultados que podem ser reconciliados",
+      objective: "Calcular contagens e somas por grupo e validar a mudança de granularidade.",
+      intro: "Agregação reduz várias linhas a uma linha por combinação de chaves. Antes de escrever métricas, declare o que cada linha final representa.",
+      analogy: "Em SQL, toda coluna selecionada fora de uma função agregadora participa do agrupamento. groupBy e agg expressam a mesma regra.",
       concepts: [
-        { title: "groupBy", text: "Define as colunas que formarão a nova granularidade." },
-        { title: "agg", text: "Recebe uma ou várias expressões agregadas." },
-        { title: "countDistinct", text: "Conta valores únicos dentro de cada grupo." },
-        { title: "Agregação condicional", text: "Combina when com sum/count para métricas filtradas." }
+        { title: "Granularidade", text: "Define o que uma linha representa no resultado." },
+        { title: "groupBy", text: "Escolhe as chaves que formarão os grupos." },
+        { title: "agg", text: "Reúne expressões agregadoras com aliases claros." },
+        { title: "Nulos", text: "COUNT(*) conta linhas; COUNT(coluna) ignora valores nulos." }
       ],
-      sql: `SELECT
-  categoria,
-  SUM(quantidade * preco_unitario) AS faturamento,
-  AVG(quantidade * preco_unitario) AS ticket_medio,
-  COUNT(DISTINCT id_cliente) AS clientes
-FROM vendas
-GROUP BY categoria;`,
-      pyspark: `from pyspark.sql import functions as F
-
-metricas = (
-    vendas
-    .withColumn("valor", F.col("quantidade") * F.col("preco_unitario"))
-    .groupBy("categoria")
-    .agg(
-        F.sum("valor").alias("faturamento"),
-        F.avg("valor").alias("ticket_medio"),
-        F.countDistinct("id_cliente").alias("clientes")
-    )
-)`,
-      exercise: "Calcule quantidade de pedidos e faturamento por status. Crie valor antes de agregar.",
-      starter: `metricas_status = (
-    pedidos
-    # valor, agrupamento e métricas
-)`,
-      hint: "Use withColumn, groupBy e agg com count e sum.",
-      solution: `from pyspark.sql import functions as F
-
-metricas_status = (
-    pedidos
-    .withColumn("valor", F.col("quantidade") * F.col("preco_unitario"))
-    .groupBy("status")
-    .agg(
-        F.count("id_pedido").alias("pedidos"),
-        F.sum("valor").alias("faturamento")
-    )
-)`,
+      sql: code([
+        "SELECT status, COUNT(*) AS quantidade_pedidos,",
+        "       SUM(quantidade * preco_unitario) AS faturamento",
+        "FROM itens GROUP BY status ORDER BY status;"
+      ]),
+      pyspark: code([
+        "resultado = (",
+        "    itens.withColumn(\"valor\", F.col(\"quantidade\") * F.col(\"preco_unitario\"))",
+        "    .groupBy(\"status\")",
+        "    .agg(",
+        "        F.count(\"*\").alias(\"quantidade_pedidos\"),",
+        "        F.sum(\"valor\").alias(\"faturamento\")",
+        "    )",
+        "    .orderBy(\"status\")",
+        ")"
+      ]),
+      exercise: "Crie valor, agrupe por status e grave em resultado as colunas status, quantidade_pedidos e faturamento, ordenadas por status.",
+      starter: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = itens"
+      ]),
+      hint: "Crie valor antes de groupBy; em agg use count('*') e sum('valor').",
+      solution: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = (",
+        "    itens.withColumn(\"valor\", F.col(\"quantidade\") * F.col(\"preco_unitario\"))",
+        "    .groupBy(\"status\")",
+        "    .agg(",
+        "        F.count(\"*\").alias(\"quantidade_pedidos\"),",
+        "        F.sum(\"valor\").alias(\"faturamento\")",
+        "    )",
+        "    .orderBy(\"status\")",
+        ")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT status, COUNT(*) AS quantidade_pedidos",
+        "FROM itens GROUP BY status;"
+      ]),
+      sqlSolution: code([
+        "SELECT status, COUNT(*) AS quantidade_pedidos,",
+        "       SUM(quantidade * preco_unitario) AS faturamento",
+        "FROM itens GROUP BY status ORDER BY status;"
+      ]),
+      expected: {
+        columns: ["status", "quantidade_pedidos", "faturamento"],
+        rows: [["APROVADO", 2, 25.0], ["PENDENTE", 1, 6.0]],
+        ordered: true
+      },
+      tables: [
+        {
+          name: "itens",
+          columns: ["status", "quantidade", "preco_unitario"],
+          rows: [["APROVADO", 2, 10.0], ["APROVADO", 1, 5.0], ["PENDENTE", 3, 2.0]]
+        }
+      ],
+      assessment: assessment(
+        [{ name: "itens", schema: "status: string, quantidade: long, preco_unitario: double" }],
+        "status: string, quantidade_pedidos: long, faturamento: double",
+        [{ status: "APROVADO", quantidade_pedidos: 2, faturamento: 25.0 }, { status: "PENDENTE", quantidade_pedidos: 1, faturamento: 6.0 }],
+        ["Entrada vazia preserva o schema.", "Um grupo com todos os valores nulos mantém a semântica de SUM."]
+      ),
+      sources: [SOURCE.sqlGuide, SOURCE.functions, SOURCE.nulls],
       quiz: {
-        question: "Após groupBy(\"categoria\"), qual será a granularidade do resultado agregado?",
-        options: ["Uma linha por pedido", "Uma linha por cliente", "Uma linha por categoria", "A granularidade não muda"],
+        question: "Após agrupar apenas por status, o que uma linha representa?",
+        options: ["Um item", "Um cliente", "Um grupo de linhas com o mesmo status", "Uma partição física"],
         correct: 2,
-        explanation: "As chaves do groupBy definem a granularidade. O resultado terá uma linha para cada categoria distinta."
+        explanation: "As chaves do groupBy definem a granularidade lógica."
       }
     },
     {
       id: 9,
       week: 2,
-      title: "Joins sem surpresas",
-      subtitle: "Chaves, cardinalidade e validação",
-      objective: "Usar inner e left joins e identificar duplicações causadas pela cardinalidade.",
-      intro: "A sintaxe do join é fácil; o ponto crítico é entender se a chave é única. Uma dimensão duplicada pode multiplicar o faturamento silenciosamente.",
-      analogy: "É o mesmo risco de relacionamento muitos-para-muitos no Power BI: a consulta roda, mas a métrica pode ficar errada.",
+      title: "Joins e cardinalidade",
+      subtitle: "Combinar relações sem multiplicar resultados por acidente",
+      objective: "Executar left join e validar chaves, nulos e quantidade de linhas.",
+      intro: "Se a chave do lado que deveria ser único estiver duplicada, cada correspondência cria uma nova linha. O Spark executa a relação descrita; o contrato de cardinalidade é responsabilidade do pipeline.",
+      analogy: "É o mesmo comportamento de um join SQL. A consulta pode estar sintaticamente correta e ainda assim produzir totais errados.",
       concepts: [
-        { title: "Inner join", text: "Mantém apenas chaves encontradas nos dois lados." },
-        { title: "Left join", text: "Preserva todas as linhas da esquerda, mesmo sem correspondência." },
-        { title: "Cardinalidade", text: "Descreve quantas linhas de um lado podem corresponder a linhas do outro." },
-        { title: "Validação", text: "Conte linhas e reconcilie totais antes e depois do join." }
+        { title: "Inner join", text: "Mantém linhas com correspondência nos dois lados." },
+        { title: "Left join", text: "Preserva a esquerda e usa nulos quando não encontra correspondência." },
+        { title: "Cardinalidade", text: "Declara quantas correspondências podem existir por chave." },
+        { title: "Reconciliação", text: "Compare contagem, chaves ausentes e totais antes e depois." }
       ],
-      sql: `SELECT
-  p.id_pedido,
-  c.nome,
-  pr.categoria
-FROM pedidos p
-LEFT JOIN clientes c ON p.id_cliente = c.id_cliente
-LEFT JOIN produtos pr ON p.id_produto = pr.id_produto;`,
-      pyspark: `enriquecidos = (
-    pedidos.alias("p")
-    .join(
-        clientes.alias("c"),
-        F.col("p.id_cliente") == F.col("c.id_cliente"),
-        "left"
-    )
-    .join(produtos.alias("pr"), "id_produto", "left")
-    .select("p.id_pedido", "c.nome", "pr.categoria")
-)`,
-      exercise: "Faça left join de pedidos com clientes pela coluna id_cliente. Depois conte pedidos sem nome de cliente.",
-      starter: `enriquecidos = pedidos.join(
-    clientes,
-    # chave e tipo
-)
-
-sem_cliente = enriquecidos.filter(...)`,
-      hint: "Depois do join, filtre F.col(\"nome\").isNull().",
-      solution: `enriquecidos = pedidos.join(
-    clientes,
-    on="id_cliente",
-    how="left"
-)
-
-sem_cliente = enriquecidos.filter(
-    F.col("nome").isNull()
-).count()`,
+      sql: code([
+        "SELECT p.id_pedido, p.id_cliente, c.estado",
+        "FROM pedidos p LEFT JOIN clientes c",
+        "  ON p.id_cliente = c.id_cliente",
+        "ORDER BY p.id_pedido;"
+      ]),
+      pyspark: code([
+        "resultado = (",
+        "    pedidos.join(",
+        "        clientes.select(\"id_cliente\", \"estado\"),",
+        "        on=\"id_cliente\", how=\"left\"",
+        "    )",
+        "    .select(\"id_pedido\", \"id_cliente\", \"estado\")",
+        "    .orderBy(\"id_pedido\")",
+        ")"
+      ]),
+      exercise: "Faça left join de pedidos com clientes por id_cliente e grave em resultado id_pedido, id_cliente e estado, ordenados por id_pedido.",
+      starter: code([
+        "resultado = pedidos"
+      ]),
+      hint: "Selecione id_cliente e estado do lado direito antes do join.",
+      solution: code([
+        "resultado = (",
+        "    pedidos.join(",
+        "        clientes.select(\"id_cliente\", \"estado\"),",
+        "        on=\"id_cliente\", how=\"left\"",
+        "    )",
+        "    .select(\"id_pedido\", \"id_cliente\", \"estado\")",
+        "    .orderBy(\"id_pedido\")",
+        ")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT p.id_pedido, p.id_cliente",
+        "FROM pedidos p;"
+      ]),
+      sqlSolution: code([
+        "SELECT p.id_pedido, p.id_cliente, c.estado",
+        "FROM pedidos p LEFT JOIN clientes c",
+        "  ON p.id_cliente = c.id_cliente",
+        "ORDER BY p.id_pedido;"
+      ]),
+      expected: {
+        columns: ["id_pedido", "id_cliente", "estado"],
+        rows: [[10, 1, "SP"], [20, 2, "RJ"], [30, 99, null]],
+        ordered: true
+      },
+      tables: [
+        { name: "pedidos", columns: ["id_pedido", "id_cliente"], rows: [[10, 1], [20, 2], [30, 99]] },
+        { name: "clientes", columns: ["id_cliente", "estado"], rows: [[1, "SP"], [2, "RJ"]] }
+      ],
+      assessment: assessment(
+        [
+          { name: "pedidos", schema: "id_pedido: long, id_cliente: long" },
+          { name: "clientes", schema: "id_cliente: long, estado: string" }
+        ],
+        "id_pedido: long, id_cliente: long, estado: string",
+        [{ id_pedido: 10, id_cliente: 1, estado: "SP" }, { id_pedido: 20, id_cliente: 2, estado: "RJ" }, { id_pedido: 30, id_cliente: 99, estado: null }],
+        ["Cliente ausente preserva o pedido.", "Chave duplicada em clientes deve ser detectada por validação de cardinalidade."]
+      ),
+      sources: [SOURCE.userGuide, SOURCE.sqlGuide, SOURCE.zoomcamp],
       quiz: {
-        question: "Um left join preserva todas as linhas de qual DataFrame?",
-        options: ["Do DataFrame da direita", "Do DataFrame da esquerda", "Somente as chaves duplicadas", "De nenhum; mantém só correspondências"],
+        question: "Por que um left join pode aumentar a quantidade de linhas?",
+        options: ["Sempre replica a esquerda", "Uma chave da esquerda pode encontrar várias linhas à direita", "Nulos são removidos", "Todo join usa broadcast"],
         correct: 1,
-        explanation: "O left join mantém todas as linhas da esquerda e preenche com nulo quando não encontra correspondência à direita."
+        explanation: "Uma relação um-para-muitos gera uma linha para cada correspondência."
       }
     },
     {
       id: 10,
       week: 2,
-      title: "Datas e funções de janela",
-      subtitle: "Ranking sem perder as linhas",
-      objective: "Tratar datas e usar janelas para ranking e cálculos dentro de grupos.",
-      intro: "GROUP BY reduz linhas; uma window function calcula dentro de um grupo preservando cada linha original.",
-      analogy: "Em SQL, você já pode conhecer OVER(PARTITION BY...). No Spark, Window cria a mesma especificação para a DataFrame API.",
+      title: "Janelas e deduplicação determinística",
+      subtitle: "Escolher explicitamente qual versão deve permanecer",
+      objective: "Usar Window e row_number para manter a versão mais recente de cada chave.",
+      intro: "dropDuplicates não expressa qual registro deve vencer. Uma janela ordenada torna a regra de escolha explícita e testável.",
+      analogy: "É o padrão SQL ROW_NUMBER() OVER (PARTITION BY ... ORDER BY ...), seguido por rn = 1.",
       concepts: [
-        { title: "to_date", text: "Converte texto em data usando um formato conhecido." },
-        { title: "Window.partitionBy", text: "Define os grupos lógicos da janela." },
-        { title: "orderBy na janela", text: "Define a ordem usada por ranking, lag e acumulados." },
-        { title: "row_number / dense_rank", text: "Atribuem posições dentro de cada grupo." }
+        { title: "partitionBy lógico", text: "Na Window, define grupos de cálculo; não reparticiona fisicamente por si só." },
+        { title: "orderBy da janela", text: "Define prioridade dentro de cada chave." },
+        { title: "row_number", text: "Numera linhas para selecionar a primeira." },
+        { title: "Desempate", text: "Uma ordenação total evita escolhas instáveis." }
       ],
-      sql: `SELECT *
-FROM (
-  SELECT
-    mes,
-    produto,
-    faturamento,
-    DENSE_RANK() OVER (
-      PARTITION BY mes
-      ORDER BY faturamento DESC
-    ) AS posicao
-  FROM vendas_mensais
-) x
-WHERE posicao <= 3;`,
-      pyspark: `from pyspark.sql import Window, functions as F
-
-janela = Window.partitionBy("mes").orderBy(
-    F.col("faturamento").desc()
-)
-
-top3 = (
-    vendas_mensais
-    .withColumn("posicao", F.dense_rank().over(janela))
-    .filter(F.col("posicao") <= 3)
-)`,
-      exercise: "Crie um ranking de clientes por faturamento dentro de cada estado, do maior para o menor.",
-      starter: `janela = Window.partitionBy(...).orderBy(...)
-
-ranking = clientes_metricas.withColumn(
-    "posicao",
-    # função sobre a janela
-)`,
-      hint: "Particione por estado, ordene faturamento desc e use dense_rank().over(janela).",
-      solution: `from pyspark.sql import Window, functions as F
-
-janela = Window.partitionBy("estado").orderBy(
-    F.col("faturamento").desc()
-)
-
-ranking = clientes_metricas.withColumn(
-    "posicao",
-    F.dense_rank().over(janela)
-)`,
+      sql: code([
+        "WITH versoes AS (",
+        "  SELECT *, ROW_NUMBER() OVER (",
+        "    PARTITION BY id_cliente",
+        "    ORDER BY atualizado_em DESC, id_evento DESC",
+        "  ) AS rn FROM historico",
+        ")",
+        "SELECT id_cliente, nome, atualizado_em",
+        "FROM versoes WHERE rn = 1 ORDER BY id_cliente;"
+      ]),
+      pyspark: code([
+        "janela = Window.partitionBy(\"id_cliente\").orderBy(",
+        "    F.col(\"atualizado_em\").desc(), F.col(\"id_evento\").desc()",
+        ")",
+        "resultado = (",
+        "    historico.withColumn(\"rn\", F.row_number().over(janela))",
+        "    .filter(F.col(\"rn\") == 1)",
+        "    .select(\"id_cliente\", \"nome\", \"atualizado_em\")",
+        "    .orderBy(\"id_cliente\")",
+        ")"
+      ]),
+      exercise: "Para cada id_cliente, mantenha a linha mais recente por atualizado_em; em empate use maior id_evento. Grave o resultado ordenado por id_cliente.",
+      starter: code([
+        "from pyspark.sql import functions as F",
+        "from pyspark.sql.window import Window",
+        "",
+        "resultado = historico"
+      ]),
+      hint: "Crie uma Window com dois critérios descendentes, numere e filtre rn == 1.",
+      solution: code([
+        "from pyspark.sql import functions as F",
+        "from pyspark.sql.window import Window",
+        "",
+        "janela = Window.partitionBy(\"id_cliente\").orderBy(",
+        "    F.col(\"atualizado_em\").desc(), F.col(\"id_evento\").desc()",
+        ")",
+        "resultado = (",
+        "    historico.withColumn(\"rn\", F.row_number().over(janela))",
+        "    .filter(F.col(\"rn\") == 1)",
+        "    .select(\"id_cliente\", \"nome\", \"atualizado_em\")",
+        "    .orderBy(\"id_cliente\")",
+        ")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT id_cliente, nome, atualizado_em",
+        "FROM historico;"
+      ]),
+      sqlSolution: code([
+        "WITH versoes AS (",
+        "  SELECT *, ROW_NUMBER() OVER (",
+        "    PARTITION BY id_cliente",
+        "    ORDER BY atualizado_em DESC, id_evento DESC",
+        "  ) AS rn FROM historico",
+        ")",
+        "SELECT id_cliente, nome, atualizado_em",
+        "FROM versoes WHERE rn = 1 ORDER BY id_cliente;"
+      ]),
+      expected: {
+        columns: ["id_cliente", "nome", "atualizado_em"],
+        rows: [[10, "Ana B", "2026-02-01 00:00:00"], [20, "Caio", "2026-01-05 00:00:00"]],
+        ordered: true
+      },
+      tables: [
+        {
+          name: "historico",
+          columns: ["id_evento", "id_cliente", "nome", "atualizado_em"],
+          rows: [[1, 10, "Ana", "2026-01-01 00:00:00"], [2, 10, "Ana B", "2026-02-01 00:00:00"], [3, 20, "Caio", "2026-01-05 00:00:00"]]
+        }
+      ],
+      assessment: assessment(
+        [{ name: "historico", schema: "id_evento: long, id_cliente: long, nome: string, atualizado_em: timestamp" }],
+        "id_cliente: long, nome: string, atualizado_em: timestamp",
+        [{ id_cliente: 10, nome: "Ana B", atualizado_em: "2026-02-01 00:00:00" }, { id_cliente: 20, nome: "Caio", atualizado_em: "2026-01-05 00:00:00" }],
+        ["Empate em timestamp escolhe maior id_evento.", "Uma única versão é preservada."]
+      ),
+      sources: [SOURCE.functions, SOURCE.sqlGuide, SOURCE.userGuide],
       quiz: {
-        question: "Qual operação preserva as linhas originais enquanto adiciona um ranking?",
-        options: ["GROUP BY", "Uma função de janela", "DROP DISTINCT", "UNION"],
+        question: "Por que incluir um critério de desempate?",
+        options: ["Evitar qualquer shuffle", "Garantir escolha determinística entre timestamps iguais", "Converter timestamp", "Aumentar linhas"],
         correct: 1,
-        explanation: "A janela calcula sobre grupos lógicos sem reduzir a quantidade de linhas, ao contrário de uma agregação."
+        explanation: "Sem ordenação total, linhas empatadas podem trocar de posição."
       }
     },
     {
       id: 11,
       week: 3,
-      title: "Partitions e paralelismo",
-      subtitle: "Como o Spark divide os dados",
-      objective: "Entender partições, tasks e quando usar repartition ou coalesce.",
-      intro: "Uma partição é uma fração dos dados processada por uma task. A quantidade e a distribuição das partições influenciam o paralelismo. No Databricks Free Edition, observe as partições somente com APIs de DataFrame, pois APIs de RDD não são suportadas pelo compute serverless.",
-      analogy: "Imagine dividir uma tabela enorme em lotes. Executors trabalham em lotes diferentes ao mesmo tempo, desde que existam recursos disponíveis.",
+      title: "Lazy evaluation, actions, jobs e stages",
+      subtitle: "O código descreve um plano antes de processar dados",
+      objective: "Distinguir transformations de actions e relacionar uma action a jobs, stages e tasks.",
+      intro: "select, filter e join criam novos planos sem exigir imediatamente um resultado. Uma action pede dados e faz o Spark organizar o trabalho em jobs, stages e tasks.",
+      analogy: "Um banco não executa SELECT, WHERE e GROUP BY isoladamente na ordem digitada. Ele analisa a consulta como um plano; o Spark também observa o conjunto antes de executar.",
       concepts: [
-        { title: "Partition", text: "Unidade física/lógica de dados que uma task processa por vez." },
-        { title: "Task", text: "A menor unidade de trabalho enviada a um executor." },
-        { title: "repartition", text: "Redistribui dados e pode aumentar ou reduzir partições, normalmente com shuffle." },
-        { title: "coalesce", text: "Costuma reduzir partições com menos movimentação, útil antes de uma saída menor." }
+        { title: "Transformation", text: "Descreve um novo DataFrame e mantém a avaliação adiada." },
+        { title: "Action", text: "Solicita um resultado, como count, collect, show ou write." },
+        { title: "Job e stage", text: "Uma action pode criar jobs; fronteiras de shuffle ajudam a separar stages." },
+        { title: "Task", text: "É uma unidade de trabalho executada sobre uma partição." }
       ],
-      sql: `-- Particionamento é detalhe físico; a consulta continua declarativa
-SELECT estado, SUM(valor)
-FROM vendas
-GROUP BY estado;`,
-      pyspark: `from pyspark.sql import functions as F
-
-por_estado = vendas.repartition(8, "estado")
-
-distribuicao = (
-    por_estado
-    .select(F.spark_partition_id().alias("particao"))
-    .groupBy("particao")
-    .count()
-    .orderBy("particao")
-)
-
-distribuicao.show()  # mostra somente partições com linhas
-por_estado.explain("formatted")  # procure hashpartitioning(estado, 8)
-
-saida_menor = por_estado.coalesce(2)`,
-      exercise: "Redistribua pedidos para 4 partições por status, liste os IDs das partições que receberam linhas e confirme o reparticionamento no plano.",
-      starter: `from pyspark.sql import functions as F
-
-pedidos_4 = pedidos.____(____, ____)
-
-distribuicao = (
-    pedidos_4
-    .select(F.____().alias("particao"))
-    .groupBy("particao")
-    .count()
-    .orderBy("particao")
-)
-
-distribuicao.show()
-pedidos_4.____("formatted")`,
-      hint: "Use repartition(4, \"status\"), spark_partition_id() e explain(\"formatted\"). A tabela de distribuição mostra apenas partições não vazias.",
-      solution: `from pyspark.sql import functions as F
-
-pedidos_4 = pedidos.repartition(4, "status")
-
-distribuicao = (
-    pedidos_4
-    .select(F.spark_partition_id().alias("particao"))
-    .groupBy("particao")
-    .count()
-    .orderBy("particao")
-)
-
-distribuicao.show()
-pedidos_4.explain("formatted")`,
+      sql: code([
+        "SELECT id_pedido, valor",
+        "FROM pedidos",
+        "WHERE status = 'APROVADO'",
+        "ORDER BY id_pedido;"
+      ]),
+      pyspark: code([
+        "resultado = (",
+        "    pedidos.filter(F.col(\"status\") == \"APROVADO\")",
+        "    .select(\"id_pedido\", \"valor\")",
+        "    .orderBy(\"id_pedido\")",
+        ")  # transformations",
+        "",
+        "resultado.show()  # action"
+      ]),
+      exercise: "Monte em resultado o plano que filtra aprovados, seleciona id_pedido e valor e ordena por id_pedido. O avaliador será responsável por disparar a action.",
+      starter: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = pedidos"
+      ]),
+      hint: "Encadeie filter, select e orderBy; não use collect dentro da solução.",
+      solution: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = (",
+        "    pedidos.filter(F.col(\"status\") == \"APROVADO\")",
+        "    .select(\"id_pedido\", \"valor\")",
+        "    .orderBy(\"id_pedido\")",
+        ")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT * FROM pedidos;"
+      ]),
+      sqlSolution: code([
+        "SELECT id_pedido, valor",
+        "FROM pedidos",
+        "WHERE status = 'APROVADO'",
+        "ORDER BY id_pedido;"
+      ]),
+      expected: {
+        columns: ["id_pedido", "valor"],
+        rows: [[1, 10.0], [3, 7.5]],
+        ordered: true
+      },
+      tables: [
+        {
+          name: "pedidos",
+          columns: ["id_pedido", "status", "valor"],
+          rows: [[1, "APROVADO", 10.0], [2, "PENDENTE", 5.0], [3, "APROVADO", 7.5]]
+        }
+      ],
+      assessment: assessment(
+        [{ name: "pedidos", schema: "id_pedido: long, status: string, valor: double" }],
+        "id_pedido: long, valor: double",
+        [{ id_pedido: 1, valor: 10.0 }, { id_pedido: 3, valor: 7.5 }],
+        ["Entrada vazia produz saída vazia.", "collect e toPandas são proibidos no código do estudante."],
+        ["Plano contém Filter, Project e Sort."]
+      ),
+      sources: [SOURCE.sqlGuide, SOURCE.cluster, SOURCE.sparkInternals],
       quiz: {
-        question: "O que uma partição representa durante o processamento?",
-        options: ["Uma máquina inteira", "Uma fração dos dados processada por uma task", "Uma tabela obrigatoriamente pequena", "Um usuário do Databricks"],
-        correct: 1,
-        explanation: "Cada task trabalha sobre uma partição. Várias tasks podem rodar em paralelo nos executors."
+        question: "Qual operação normalmente dispara execução?",
+        options: ["select", "filter", "withColumn", "count"],
+        correct: 3,
+        explanation: "count precisa de um resultado e é uma action; as demais operações normalmente apenas ampliam o plano."
       }
     },
     {
       id: 12,
       week: 3,
-      title: "Shuffle: o custo invisível",
-      subtitle: "Quando dados atravessam o cluster",
-      objective: "Reconhecer operações que causam shuffle e reduzir dados antes de movimentá-los.",
-      intro: "Shuffle ocorre quando o Spark precisa redistribuir registros entre partições, frequentemente através da rede. É necessário, mas costuma ser caro.",
-      analogy: "Se cada equipe recebeu um lote, mas agora você precisa agrupar todos os clientes do mesmo estado, parte dos papéis terá de trocar de equipe.",
+      title: "Partitions, tasks e paralelismo",
+      subtitle: "Como o Spark divide os dados para trabalhar",
+      objective: "Relacionar partições a tasks e observar uma redistribuição usando APIs de DataFrame.",
+      intro: "Uma partição é uma fração dos dados. Em um stage, normalmente uma task processa uma partição. Mais partições não significam automaticamente mais velocidade: recursos e tamanho dos lotes importam.",
+      analogy: "Dividir uma relação em lotes permite processá-los em paralelo, mas muitos lotes minúsculos também criam custo de coordenação.",
       concepts: [
-        { title: "Narrow transformation", text: "Cada partição de saída depende de poucas partições de entrada, como filter e select." },
-        { title: "Wide transformation", text: "A saída depende de várias entradas e normalmente exige shuffle." },
-        { title: "Causadores comuns", text: "groupBy, join, distinct, repartition e orderBy frequentemente movimentam dados." },
-        { title: "Redução antecipada", text: "Filtrar linhas e selecionar colunas cedo diminui o volume do shuffle." }
+        { title: "Partition", text: "É uma divisão física dos registros usada como unidade de paralelismo." },
+        { title: "Task", text: "Executa o trabalho de um stage sobre uma partição." },
+        { title: "repartition", text: "Redistribui dados e pode aumentar ou reduzir o número de partições, causando shuffle." },
+        { title: "coalesce", text: "Costuma reduzir partições com menos movimentação, sem garantir balanceamento." }
       ],
-      sql: `-- Filtre antes de agregar para mover menos dados
-SELECT estado, SUM(valor)
-FROM vendas
-WHERE status = 'APROVADO'
-GROUP BY estado;`,
-      pyspark: `otimizado = (
-    vendas
-    .filter(F.col("status") == "APROVADO")
-    .select("estado", "valor")
-    .groupBy("estado")
-    .agg(F.sum("valor").alias("faturamento"))
-)
-
-otimizado.explain()`,
-      exercise: "Reorganize uma consulta para filtrar somente pedidos aprovados e selecionar apenas estado e valor antes do groupBy.",
-      starter: `resultado = (
-    vendas
-    # reduza antes do groupBy
-)`,
-      hint: "A ordem didática é filter → select → groupBy → agg.",
-      solution: `resultado = (
-    vendas
-    .filter(F.col("status") == "APROVADO")
-    .select("estado", "valor")
-    .groupBy("estado")
-    .agg(F.sum("valor").alias("faturamento"))
-)`,
+      sql: code([
+        "SELECT grupo, COUNT(*) AS linhas",
+        "FROM eventos",
+        "GROUP BY grupo",
+        "ORDER BY grupo;"
+      ]),
+      pyspark: code([
+        "distribuidos = (",
+        "    eventos.repartition(2, \"grupo\")",
+        "    .withColumn(\"particao\", F.spark_partition_id())",
+        ")",
+        "resultado = (",
+        "    distribuidos.groupBy(\"grupo\")",
+        "    .agg(F.countDistinct(\"particao\").alias(\"particoes_usadas\"))",
+        "    .orderBy(\"grupo\")",
+        ")"
+      ]),
+      exercise: "Redistribua eventos em 2 partições por grupo, adicione spark_partition_id e devolva por grupo a quantidade de partições distintas usadas.",
+      starter: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = eventos"
+      ]),
+      hint: "Crie distribuidos com repartition e spark_partition_id; depois agrupe e use countDistinct.",
+      solution: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "distribuidos = (",
+        "    eventos.repartition(2, \"grupo\")",
+        "    .withColumn(\"particao\", F.spark_partition_id())",
+        ")",
+        "resultado = (",
+        "    distribuidos.groupBy(\"grupo\")",
+        "    .agg(F.countDistinct(\"particao\").alias(\"particoes_usadas\"))",
+        "    .orderBy(\"grupo\")",
+        ")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT grupo FROM eventos;"
+      ]),
+      sqlSolution: code([
+        "SELECT grupo, COUNT(*) AS linhas",
+        "FROM eventos GROUP BY grupo ORDER BY grupo;"
+      ]),
+      expected: {
+        columns: ["grupo", "particoes_usadas"],
+        rows: [["A", 1], ["B", 1]],
+        ordered: true
+      },
+      sqlExpected: {
+        columns: ["grupo", "linhas"],
+        rows: [["A", 2], ["B", 2]],
+        ordered: true
+      },
+      tables: [
+        { name: "eventos", columns: ["id", "grupo"], rows: [[1, "A"], [2, "A"], [3, "B"], [4, "B"]] }
+      ],
+      assessment: assessment(
+        [{ name: "eventos", schema: "id: long, grupo: string" }],
+        "grupo: string, particoes_usadas: long",
+        [{ grupo: "A", particoes_usadas: 1 }, { grupo: "B", particoes_usadas: 1 }],
+        ["IDs físicos das partições não devem ser comparados por valor.", "Grupo único continua usando uma partição após repartition por chave."],
+        ["Plano contém RepartitionByExpression."]
+      ),
+      sources: [SOURCE.cluster, SOURCE.webUi, SOURCE.sparkInternals],
       quiz: {
-        question: "Qual grupo contém operações que normalmente provocam shuffle?",
-        options: ["select e filter", "groupBy, join e orderBy", "withColumn e alias", "show e printSchema apenas"],
+        question: "Qual relação é geralmente válida dentro de um stage?",
+        options: ["Uma task processa todas as partições", "Uma task costuma processar uma partição", "Uma partição exige um cluster inteiro", "repartition nunca causa shuffle"],
         correct: 1,
-        explanation: "Essas operações precisam reagrupar ou ordenar dados vindos de várias partições, causando redistribuição."
+        explanation: "Tasks são agendadas sobre partições; o paralelismo também depende dos recursos disponíveis."
       }
     },
     {
       id: 13,
       week: 3,
-      title: "Cache com propósito (laboratório local)",
-      subtitle: "Prática opcional fora do Free Edition",
-      objective: "Compreender quando cache/persist ajuda e praticar cache/unpersist no PySpark local.",
-      intro: "Esta prática é exclusiva do ambiente PySpark local fornecido no starter. No Databricks Free Edition, leia os conceitos e responda ao quiz sem executar os comandos de cache. Cache evita recomputar um DataFrame reutilizado, mas ocupa memória e só é materializado quando uma action ocorre.",
-      analogy: "É como manter uma consulta intermediária pronta para vários visuais. Faz sentido se ela for cara e reutilizada, não para cada etapa do fluxo.",
+      title: "Shuffle, repartition e redução antecipada",
+      subtitle: "Movimentar somente os dados necessários",
+      objective: "Reconhecer uma operação wide e reduzir linhas e colunas antes da redistribuição.",
+      intro: "Shuffle move registros entre partições para reunir chaves relacionadas. É necessário para muitos groupBy, joins e ordenações, mas pode envolver rede, serialização e disco.",
+      analogy: "Se lotes foram divididos sem considerar estado, agrupar por estado exige enviar registros para novos destinos.",
       concepts: [
-        { title: "Ambiente desta aula", text: "Execute o exemplo apenas no PySpark local; no Free Edition, trate-o como estudo conceitual." },
-        { title: "cache", text: "Marca o DataFrame para persistência usando o nível padrão." },
-        { title: "persist", text: "Permite escolher níveis de armazenamento, como memória e disco." },
-        { title: "Materialização", text: "Uma action precisa executar o plano para preencher o cache." },
-        { title: "unpersist", text: "Libera os blocos quando a reutilização termina." }
+        { title: "Narrow transformation", text: "Cada partição de saída depende de poucas partições de entrada, sem redistribuição global." },
+        { title: "Wide transformation", text: "Pode depender de várias partições e cria uma fronteira de shuffle." },
+        { title: "Redução antecipada", text: "Filtrar linhas e projetar colunas antes do shuffle diminui o volume movimentado." },
+        { title: "Exchange", text: "É um sinal comum de redistribuição no plano físico." }
       ],
-      sql: `-- LABORATÓRIO LOCAL: não execute estes comandos no Free Edition
--- Conceito: uma view temporária não significa cache automático
-CACHE TABLE vendas_aprovadas;
-SELECT COUNT(*) FROM vendas_aprovadas;
-UNCACHE TABLE vendas_aprovadas;`,
-      pyspark: `# LABORATÓRIO LOCAL: execute com o starter do Mentor de Dados
-aprovadas = (
-    vendas
-    .filter(F.col("status") == "APROVADO")
-    .cache()
-)
-
-aprovadas.count()  # materializa
-aprovadas.groupBy("estado").sum("valor").show()
-aprovadas.groupBy("categoria").sum("valor").show()
-aprovadas.unpersist()`,
-      exercise: "Somente no PySpark local: marque uma agregação cara para cache, materialize-a com count, use-a duas vezes e depois libere-a.",
-      starter: `base = transformacao_cara.____()
-base.____()  # materializa
-
-# duas análises
-
-base.____()`,
-      hint: "Execute no ambiente local do starter. Os métodos são cache(), count() e unpersist().",
-      solution: `base = transformacao_cara.cache()
-base.count()
-
-base.filter("estado = 'SP'").show()
-base.groupBy("categoria").sum("valor").show()
-
-base.unpersist()`,
+      sql: code([
+        "SELECT estado, SUM(valor) AS faturamento",
+        "FROM pedidos",
+        "WHERE status = 'APROVADO'",
+        "GROUP BY estado ORDER BY estado;"
+      ]),
+      pyspark: code([
+        "resultado = (",
+        "    pedidos.filter(F.col(\"status\") == \"APROVADO\")",
+        "    .select(\"estado\", \"valor\")",
+        "    .groupBy(\"estado\")",
+        "    .agg(F.sum(\"valor\").alias(\"faturamento\"))",
+        "    .orderBy(\"estado\")",
+        ")"
+      ]),
+      exercise: "Filtre aprovados e selecione apenas estado e valor antes de agrupar. Grave faturamento por estado em resultado, ordenado por estado.",
+      starter: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = pedidos"
+      ]),
+      hint: "A ordem pedagógica é filter, select, groupBy, agg e orderBy.",
+      solution: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = (",
+        "    pedidos.filter(F.col(\"status\") == \"APROVADO\")",
+        "    .select(\"estado\", \"valor\")",
+        "    .groupBy(\"estado\")",
+        "    .agg(F.sum(\"valor\").alias(\"faturamento\"))",
+        "    .orderBy(\"estado\")",
+        ")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT estado, SUM(valor) AS faturamento",
+        "FROM pedidos GROUP BY estado;"
+      ]),
+      sqlSolution: code([
+        "SELECT estado, SUM(valor) AS faturamento",
+        "FROM pedidos WHERE status = 'APROVADO'",
+        "GROUP BY estado ORDER BY estado;"
+      ]),
+      expected: {
+        columns: ["estado", "faturamento"],
+        rows: [["RJ", 7.0], ["SP", 15.0]],
+        ordered: true
+      },
+      tables: [
+        {
+          name: "pedidos",
+          columns: ["id_pedido", "estado", "status", "valor", "observacao"],
+          rows: [[1, "SP", "APROVADO", 10.0, "x"], [2, "SP", "PENDENTE", 99.0, "y"], [3, "SP", "APROVADO", 5.0, "z"], [4, "RJ", "APROVADO", 7.0, "w"]]
+        }
+      ],
+      assessment: assessment(
+        [{ name: "pedidos", schema: "id_pedido: long, estado: string, status: string, valor: double, observacao: string" }],
+        "estado: string, faturamento: double",
+        [{ estado: "RJ", faturamento: 7.0 }, { estado: "SP", faturamento: 15.0 }],
+        ["Estados sem aprovados não aparecem.", "Coluna observacao não deve chegar à agregação."],
+        ["Filter e Project aparecem antes de Exchange no plano."]
+      ),
+      sources: [SOURCE.performance, SOURCE.webUi, SOURCE.sparkInternals],
       quiz: {
-        question: "Por que não aplicar cache em todos os DataFrames?",
-        options: ["Porque cache impede SQL", "Porque consome recursos e pode custar mais do que recomputar", "Porque só funciona com CSV", "Porque apaga partições"],
-        correct: 1,
-        explanation: "Cache tem custo de armazenamento e materialização. Use-o em resultados caros que serão reutilizados."
+        question: "Qual operação costuma provocar shuffle?",
+        options: ["Selecionar uma coluna", "Renomear uma coluna", "Agrupar por uma chave", "Criar um alias"],
+        correct: 2,
+        explanation: "Registros com a mesma chave precisam ser reunidos, geralmente por redistribuição."
       }
     },
     {
       id: 14,
       week: 3,
-      title: "Broadcast join e data skew",
-      subtitle: "Joins mais inteligentes",
-      objective: "Reconhecer dimensões pequenas e usar broadcast, além de identificar chaves desbalanceadas.",
-      intro: "Se uma tabela é pequena, o Spark pode enviá-la a cada executor e evitar a redistribuição da tabela grande.",
-      analogy: "Em vez de reunir todos num arquivo central, cada equipe recebe uma cópia do pequeno catálogo de produtos e consulta localmente.",
+      title: "Broadcast join, skew e AQE",
+      subtitle: "Escolher e verificar estratégias de join",
+      objective: "Usar broadcast para uma relação pequena e reconhecer skew e Adaptive Query Execution.",
+      intro: "Se uma relação é suficientemente pequena, cada executor pode receber uma cópia e evitar redistribuir a relação grande. Estatísticas e AQE também ajudam o Spark a ajustar estratégias.",
+      analogy: "Em vez de mover todos os pedidos para encontrar produtos, cada equipe recebe uma cópia do pequeno catálogo.",
       concepts: [
-        { title: "Broadcast", text: "Copia uma relação pequena para os executors, evitando shuffle do lado grande." },
-        { title: "Fato e dimensão", text: "Uma dimensão pequena costuma ser candidata; a fato grande normalmente não." },
-        { title: "Data skew", text: "Algumas chaves concentram dados demais e criam tasks muito mais lentas." },
-        { title: "Plano físico", text: "explain ajuda a confirmar BroadcastHashJoin ou outra estratégia escolhida." }
+        { title: "Broadcast join", text: "Replica uma relação pequena e evita um shuffle completo do lado grande." },
+        { title: "Estatísticas", text: "Ajudam o otimizador a estimar tamanhos e escolher estratégias." },
+        { title: "Data skew", text: "Poucas chaves concentram muitas linhas e deixam algumas tasks muito mais lentas." },
+        { title: "AQE", text: "Pode ajustar partições e estratégias usando informações observadas durante a execução." }
       ],
-      sql: `SELECT /*+ BROADCAST(p) */
-  v.id_pedido,
-  p.categoria
-FROM vendas v
-JOIN produtos p ON v.id_produto = p.id_produto;`,
-      pyspark: `from pyspark.sql.functions import broadcast
-
-enriquecidas = vendas.join(
-    broadcast(produtos),
-    on="id_produto",
-    how="left"
-)
-
-enriquecidas.explain()`,
-      exercise: "Faça join de pedidos com a pequena tabela produtos usando broadcast e inspecione o plano.",
-      starter: `resultado = pedidos.join(
-    ____(produtos),
-    on=____,
-    how=____
-)
-
-resultado.____()`,
-      hint: "Importe broadcast, use a chave id_produto e finalize com explain().",
-      solution: `from pyspark.sql.functions import broadcast
-
-resultado = pedidos.join(
-    broadcast(produtos),
-    on="id_produto",
-    how="left"
-)
-
-resultado.explain()`,
+      sql: code([
+        "SELECT p.id_pedido, p.id_produto, d.categoria, p.valor",
+        "FROM pedidos p",
+        "JOIN produtos d ON p.id_produto = d.id_produto",
+        "ORDER BY p.id_pedido;"
+      ]),
+      pyspark: code([
+        "resultado = (",
+        "    pedidos.join(",
+        "        F.broadcast(produtos),",
+        "        on=\"id_produto\", how=\"inner\"",
+        "    )",
+        "    .select(\"id_pedido\", \"id_produto\", \"categoria\", \"valor\")",
+        "    .orderBy(\"id_pedido\")",
+        ")",
+        "resultado.explain(\"formatted\")"
+      ]),
+      exercise: "Use F.broadcast(produtos) em um inner join por id_produto e grave em resultado id_pedido, id_produto, categoria e valor, ordenados por id_pedido.",
+      starter: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = pedidos"
+      ]),
+      hint: "Envolva o DataFrame pequeno com F.broadcast antes de passá-lo a join.",
+      solution: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = (",
+        "    pedidos.join(F.broadcast(produtos), on=\"id_produto\", how=\"inner\")",
+        "    .select(\"id_pedido\", \"id_produto\", \"categoria\", \"valor\")",
+        "    .orderBy(\"id_pedido\")",
+        ")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT p.id_pedido, p.id_produto, p.valor",
+        "FROM pedidos p;"
+      ]),
+      sqlSolution: code([
+        "SELECT p.id_pedido, p.id_produto, d.categoria, p.valor",
+        "FROM pedidos p JOIN produtos d",
+        "  ON p.id_produto = d.id_produto",
+        "ORDER BY p.id_pedido;"
+      ]),
+      expected: {
+        columns: ["id_pedido", "id_produto", "categoria", "valor"],
+        rows: [[1, 10, "A", 15.0], [2, 20, "B", 8.0], [3, 10, "A", 5.0]],
+        ordered: true
+      },
+      tables: [
+        { name: "pedidos", columns: ["id_pedido", "id_produto", "valor"], rows: [[1, 10, 15.0], [2, 20, 8.0], [3, 10, 5.0], [4, 99, 2.0]] },
+        { name: "produtos", columns: ["id_produto", "categoria"], rows: [[10, "A"], [20, "B"]] }
+      ],
+      assessment: assessment(
+        [
+          { name: "pedidos", schema: "id_pedido: long, id_produto: long, valor: double" },
+          { name: "produtos", schema: "id_produto: long, categoria: string; relação pequena" }
+        ],
+        "id_pedido: long, id_produto: long, categoria: string, valor: double",
+        [{ id_pedido: 1, id_produto: 10, categoria: "A", valor: 15.0 }, { id_pedido: 2, id_produto: 20, categoria: "B", valor: 8.0 }, { id_pedido: 3, id_produto: 10, categoria: "A", valor: 5.0 }],
+        ["Produto ausente é removido pelo inner join.", "Chave dominante deve ser discutida como possível skew."],
+        ["Plano final contém BroadcastHashJoin ou BroadcastNestedLoopJoin compatível."]
+      ),
+      sources: [SOURCE.performance, SOURCE.sqlInternals, SOURCE.zoomcamp],
       quiz: {
-        question: "Quando uma tabela é boa candidata a broadcast?",
-        options: ["Quando é a maior tabela do pipeline", "Quando é pequena o bastante para ser copiada aos executors", "Quando não possui chave", "Sempre que houver um left join"],
+        question: "Quando broadcast tende a ser apropriado?",
+        options: ["Quando os dois lados são enormes", "Quando um lado é pequeno o suficiente para ser replicado", "Em qualquer cross join", "Para eliminar nulos"],
         correct: 1,
-        explanation: "Broadcast é eficiente quando a relação pequena cabe com segurança na memória dos executors."
+        explanation: "Broadcast troca a redistribuição do lado grande pela replicação controlada do lado pequeno."
       }
     },
     {
       id: 15,
       week: 3,
-      title: "Ler o plano de execução",
-      subtitle: "explain antes de adivinhar",
-      objective: "Identificar filtros, projeções, exchanges e estratégias de join no plano.",
-      intro: "O plano revela o que a engine realmente fará. Ele é a ponte entre o código legível e o custo físico da execução.",
-      analogy: "É semelhante ao plano de execução de um banco SQL: você procura leituras excessivas, movimentações e estratégias de join.",
+      title: "Ler e melhorar o plano de execução",
+      subtitle: "Usar explain antes de otimizar por intuição",
+      objective: "Identificar filtros, projeções, exchanges e estratégias de join e aplicar otimizações justificadas.",
+      intro: "O plano físico mostra o que a engine pretende executar. A meta não é decorar cada nó, mas localizar leitura, filtros, projeções, exchanges e joins.",
+      analogy: "Como em um EXPLAIN de banco relacional, o plano conecta uma consulta legível às operações físicas e aos custos prováveis.",
       concepts: [
-        { title: "Plano lógico", text: "Representa as operações e passa por otimizações do Catalyst." },
-        { title: "Plano físico", text: "Mostra operadores concretos, exchanges, scans e joins." },
-        { title: "Predicate pushdown", text: "Empurra filtros para a leitura quando a fonte permite." },
-        { title: "collect", text: "Traz todas as linhas ao driver; pode exceder sua memória." }
+        { title: "Plano lógico", text: "Representa relações e expressões antes da escolha das operações físicas." },
+        { title: "Plano físico", text: "Mostra estratégias concretas, como scan, exchange e hash join." },
+        { title: "Pushdown e pruning", text: "Aplicam filtros junto à fonte e evitam ler colunas desnecessárias quando suportado." },
+        { title: "Cache com propósito", text: "Só ajuda quando um resultado caro será reutilizado; ocupa recursos e não deve ser padrão." }
       ],
-      sql: `EXPLAIN FORMATTED
-SELECT categoria, SUM(valor)
-FROM vendas
-WHERE data_pedido >= DATE '2026-01-01'
-GROUP BY categoria;`,
-      pyspark: `consulta = (
-    vendas
-    .filter(F.col("data_pedido") >= "2026-01-01")
-    .groupBy("categoria")
-    .agg(F.sum("valor").alias("faturamento"))
-)
-
-consulta.explain("formatted")`,
-      exercise: "Use explain('formatted') em um join e procure as palavras Exchange e Join. Anote o que encontrou.",
-      starter: `consulta = pedidos.join(clientes, "id_cliente", "left")
-
-# inspecione o plano detalhado`,
-      hint: "Chame consulta.explain(\"formatted\"). Exchange costuma indicar redistribuição.",
-      solution: `consulta = pedidos.join(clientes, "id_cliente", "left")
-consulta.explain("formatted")
-
-# Procure, por exemplo:
-# Exchange — redistribuição/shuffle
-# SortMergeJoin ou BroadcastHashJoin — estratégia de join`,
+      sql: code([
+        "SELECT c.estado, SUM(p.valor) AS faturamento",
+        "FROM pedidos p JOIN clientes c",
+        "  ON p.id_cliente = c.id_cliente",
+        "WHERE p.status = 'APROVADO'",
+        "GROUP BY c.estado ORDER BY c.estado;"
+      ]),
+      pyspark: code([
+        "resultado = (",
+        "    pedidos.filter(F.col(\"status\") == \"APROVADO\")",
+        "    .select(\"id_cliente\", \"valor\")",
+        "    .join(clientes.select(\"id_cliente\", \"estado\"), \"id_cliente\")",
+        "    .groupBy(\"estado\")",
+        "    .agg(F.sum(\"valor\").alias(\"faturamento\"))",
+        "    .orderBy(\"estado\")",
+        ")",
+        "resultado.explain(\"formatted\")"
+      ]),
+      exercise: "Filtre e projete pedidos antes do join, agregue faturamento por estado e grave o resultado ordenado. O avaliador verificará também o plano.",
+      starter: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = pedidos"
+      ]),
+      hint: "Antes do join, mantenha apenas aprovados e as colunas id_cliente e valor.",
+      solution: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = (",
+        "    pedidos.filter(F.col(\"status\") == \"APROVADO\")",
+        "    .select(\"id_cliente\", \"valor\")",
+        "    .join(clientes.select(\"id_cliente\", \"estado\"), \"id_cliente\")",
+        "    .groupBy(\"estado\")",
+        "    .agg(F.sum(\"valor\").alias(\"faturamento\"))",
+        "    .orderBy(\"estado\")",
+        ")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT c.estado, SUM(p.valor) AS faturamento",
+        "FROM pedidos p JOIN clientes c ON p.id_cliente = c.id_cliente",
+        "GROUP BY c.estado;"
+      ]),
+      sqlSolution: code([
+        "SELECT c.estado, SUM(p.valor) AS faturamento",
+        "FROM pedidos p JOIN clientes c ON p.id_cliente = c.id_cliente",
+        "WHERE p.status = 'APROVADO'",
+        "GROUP BY c.estado ORDER BY c.estado;"
+      ]),
+      expected: {
+        columns: ["estado", "faturamento"],
+        rows: [["RJ", 7.0], ["SP", 15.0]],
+        ordered: true
+      },
+      tables: [
+        { name: "pedidos", columns: ["id_pedido", "id_cliente", "status", "valor", "payload"], rows: [[1, 10, "APROVADO", 10.0, "x"], [2, 10, "PENDENTE", 99.0, "y"], [3, 10, "APROVADO", 5.0, "z"], [4, 20, "APROVADO", 7.0, "w"]] },
+        { name: "clientes", columns: ["id_cliente", "estado", "nome"], rows: [[10, "SP", "Ana"], [20, "RJ", "Bia"]] }
+      ],
+      assessment: assessment(
+        [
+          { name: "pedidos", schema: "id_pedido: long, id_cliente: long, status: string, valor: double, payload: string" },
+          { name: "clientes", schema: "id_cliente: long, estado: string, nome: string" }
+        ],
+        "estado: string, faturamento: double",
+        [{ estado: "RJ", faturamento: 7.0 }, { estado: "SP", faturamento: 15.0 }],
+        ["Colunas payload e nome não são necessárias.", "Cache não deve ser aplicado sem reutilização."],
+        ["Filter e Project precedem Join.", "Plano não contém PythonUDF.", "Há Exchange associado à agregação quando aplicável."]
+      ),
+      sources: [SOURCE.performance, SOURCE.webUi, SOURCE.sqlInternals],
       quiz: {
-        question: "Por que collect() pode derrubar o driver?",
-        options: ["Porque remove o schema", "Porque tenta trazer todos os dados para a memória do driver", "Porque sempre causa broadcast", "Porque só aceita uma coluna"],
-        correct: 1,
-        explanation: "collect retorna todas as linhas ao processo do driver. Em datasets grandes, a memória local pode não suportar."
+        question: "Qual prática é mais segura ao investigar performance?",
+        options: ["Adicionar cache a tudo", "Aumentar partições sem medir", "Ler o plano e medir antes de mudar", "Trocar SQL por PySpark automaticamente"],
+        correct: 2,
+        explanation: "Plano e métricas ajudam a localizar o custo real antes de aplicar uma otimização."
       }
     },
     {
       id: 16,
       week: 4,
-      title: "Qualidade de dados",
-      subtitle: "Não basta o pipeline terminar",
-      objective: "Aplicar regras de nulos, domínio, unicidade e integridade de chaves.",
-      intro: "Um job verde pode produzir um resultado errado. Qualidade transforma expectativas de negócio em validações observáveis.",
-      analogy: "É como validar medidas do Power BI contra totais conhecidos: contagem, unicidade e reconciliação fazem parte do resultado.",
+      title: "Qualidade de dados como contrato",
+      subtitle: "Um job concluído não garante um resultado correto",
+      objective: "Transformar regras de completude, domínio e validade em colunas verificáveis.",
+      intro: "Qualidade não é apenas remover linhas ruins. É declarar regras, identificar rejeições, explicar motivos e reconciliar quantidades.",
+      analogy: "Uma consulta SQL de validação pode contar chaves nulas, valores fora do domínio e duplicidades. No pipeline, essas consultas viram contratos automatizados.",
       concepts: [
-        { title: "Completude", text: "Colunas obrigatórias não podem estar nulas." },
-        { title: "Unicidade", text: "Chaves esperadas como únicas não devem aparecer repetidas." },
-        { title: "Domínio", text: "Valores devem pertencer a um conjunto permitido ou a uma faixa válida." },
-        { title: "Integridade referencial", text: "Chaves de fatos precisam encontrar dimensões quando a regra exige." }
+        { title: "Completude", text: "Campos obrigatórios não podem estar nulos." },
+        { title: "Domínio", text: "Valores precisam pertencer ao conjunto permitido." },
+        { title: "Validade", text: "Regras como quantidade maior que zero precisam ser testadas." },
+        { title: "Quarentena", text: "Registros rejeitados devem conservar contexto e motivo para investigação." }
       ],
-      sql: `SELECT
-  COUNT(*) AS linhas,
-  COUNT(DISTINCT id_pedido) AS pedidos_unicos,
-  SUM(CASE WHEN id_cliente IS NULL THEN 1 ELSE 0 END) AS sem_cliente
-FROM pedidos;`,
-      pyspark: `validacao = pedidos.agg(
-    F.count("*").alias("linhas"),
-    F.countDistinct("id_pedido").alias("pedidos_unicos"),
-    F.sum(
-        F.when(F.col("id_cliente").isNull(), 1).otherwise(0)
-    ).alias("sem_cliente")
-)
-
-rejeitados = pedidos.filter(
-    F.col("id_pedido").isNull() |
-    ~F.col("status").isin("APROVADO", "PENDENTE", "CANCELADO")
-)`,
-      exercise: "Separe pedidos válidos e rejeitados. Rejeite id_pedido nulo, quantidade <= 0 ou status fora da lista permitida.",
-      starter: `regra_invalida = (
-    # combine as três condições com |
-)
-
-rejeitados = pedidos.filter(regra_invalida)
-validos = pedidos.filter(____)`,
-      hint: "Para os válidos, negue toda a expressão com ~regra_invalida.",
-      solution: `regra_invalida = (
-    F.col("id_pedido").isNull() |
-    (F.col("quantidade") <= 0) |
-    ~F.col("status").isin("APROVADO", "PENDENTE", "CANCELADO")
-)
-
-rejeitados = pedidos.filter(regra_invalida)
-validos = pedidos.filter(~regra_invalida)`,
+      sql: code([
+        "SELECT *,",
+        "  CASE",
+        "    WHEN id_pedido IS NULL THEN 'ID_NULO'",
+        "    WHEN quantidade <= 0 THEN 'QUANTIDADE_INVALIDA'",
+        "    WHEN status NOT IN ('APROVADO','PENDENTE') THEN 'STATUS_INVALIDO'",
+        "    ELSE 'OK'",
+        "  END AS motivo_qualidade",
+        "FROM pedidos ORDER BY sequencia;"
+      ]),
+      pyspark: code([
+        "motivo = (",
+        "    F.when(F.col(\"id_pedido\").isNull(), \"ID_NULO\")",
+        "    .when(F.col(\"quantidade\") <= 0, \"QUANTIDADE_INVALIDA\")",
+        "    .when(~F.col(\"status\").isin(\"APROVADO\", \"PENDENTE\"), \"STATUS_INVALIDO\")",
+        "    .otherwise(\"OK\")",
+        ")",
+        "resultado = pedidos.withColumn(\"motivo_qualidade\", motivo).orderBy(\"sequencia\")"
+      ]),
+      exercise: "Crie motivo_qualidade com prioridade ID_NULO, QUANTIDADE_INVALIDA, STATUS_INVALIDO e OK. Preserve as colunas e ordene por sequencia.",
+      starter: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = pedidos"
+      ]),
+      hint: "Encadeie F.when na ordem de prioridade e finalize com otherwise('OK').",
+      solution: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "motivo = (",
+        "    F.when(F.col(\"id_pedido\").isNull(), \"ID_NULO\")",
+        "    .when(F.col(\"quantidade\") <= 0, \"QUANTIDADE_INVALIDA\")",
+        "    .when(~F.col(\"status\").isin(\"APROVADO\", \"PENDENTE\"), \"STATUS_INVALIDO\")",
+        "    .otherwise(\"OK\")",
+        ")",
+        "resultado = pedidos.withColumn(\"motivo_qualidade\", motivo).orderBy(\"sequencia\")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT * FROM pedidos ORDER BY sequencia;"
+      ]),
+      sqlSolution: code([
+        "SELECT *, CASE",
+        "  WHEN id_pedido IS NULL THEN 'ID_NULO'",
+        "  WHEN quantidade <= 0 THEN 'QUANTIDADE_INVALIDA'",
+        "  WHEN status NOT IN ('APROVADO','PENDENTE') THEN 'STATUS_INVALIDO'",
+        "  ELSE 'OK' END AS motivo_qualidade",
+        "FROM pedidos ORDER BY sequencia;"
+      ]),
+      expected: {
+        columns: ["sequencia", "id_pedido", "quantidade", "status", "motivo_qualidade"],
+        rows: [[1, 10, 2, "APROVADO", "OK"], [2, null, 1, "APROVADO", "ID_NULO"], [3, 30, 0, "PENDENTE", "QUANTIDADE_INVALIDA"], [4, 40, 1, "CANCELADO", "STATUS_INVALIDO"]],
+        ordered: true
+      },
+      tables: [
+        {
+          name: "pedidos",
+          columns: ["sequencia", "id_pedido", "quantidade", "status"],
+          rows: [[1, 10, 2, "APROVADO"], [2, null, 1, "APROVADO"], [3, 30, 0, "PENDENTE"], [4, 40, 1, "CANCELADO"]]
+        }
+      ],
+      assessment: assessment(
+        [{ name: "pedidos", schema: "sequencia: long, id_pedido: long nullable, quantidade: long, status: string" }],
+        "colunas originais + motivo_qualidade: string",
+        [
+          { sequencia: 1, motivo_qualidade: "OK" },
+          { sequencia: 2, motivo_qualidade: "ID_NULO" },
+          { sequencia: 3, motivo_qualidade: "QUANTIDADE_INVALIDA" },
+          { sequencia: 4, motivo_qualidade: "STATUS_INVALIDO" }
+        ],
+        ["Uma linha que viola várias regras recebe o motivo de maior prioridade.", "Status nulo precisa ser tratado explicitamente em teste oculto."]
+      ),
+      sources: [SOURCE.functions, SOURCE.nulls, SOURCE.testing],
       quiz: {
-        question: "Além de contar linhas, quais validações fortalecem a confiança nos dados?",
-        options: ["Somente ordenar o resultado", "Unicidade, nulos, domínios, chaves e reconciliação", "Aumentar executors", "Aplicar cache em tudo"],
+        question: "Por que guardar o motivo da rejeição?",
+        options: ["Para aumentar partições", "Para tornar a regra observável e investigável", "Para substituir o schema", "Para evitar todos os testes"],
         correct: 1,
-        explanation: "Qualidade cobre estrutura e regras de negócio; nenhuma contagem isolada garante correção."
+        explanation: "Uma quarentena explicável permite medir falhas e corrigir a origem."
       }
     },
     {
       id: 17,
       week: 4,
-      title: "Deduplicação com janelas",
-      subtitle: "Manter o registro mais recente",
-      objective: "Usar row_number, partitionBy e orderBy para deduplicar versões.",
-      intro: "dropDuplicates escolhe uma linha sem controlar qual versão fica. Uma janela permite ordenar por atualização e manter explicitamente a mais recente.",
-      analogy: "É como obter a última situação de cada pedido em uma tabela de histórico, uma operação comum em SQL com ROW_NUMBER.",
+      title: "Transformações testáveis",
+      subtitle: "Comparar schema e conteúdo, não apenas olhar show",
+      objective: "Escrever uma transformação determinística e validá-la com utilitários oficiais do PySpark.",
+      intro: "Olhar algumas linhas é útil para explorar, mas não constitui um teste repetível. PySpark oferece assertDataFrameEqual e assertSchemaEqual para comparar contratos.",
+      analogy: "Assim como uma query pode ter casos de teste com entradas e saídas conhecidas, uma função de DataFrame deve ser verificável com fixtures pequenas.",
       concepts: [
-        { title: "Chave de negócio", text: "Define o grupo de registros que representa a mesma entidade." },
-        { title: "Ordenação determinística", text: "Define qual versão vence, normalmente atualizado_em decrescente." },
-        { title: "row_number", text: "Numera as versões dentro da chave; a posição 1 é selecionada." },
-        { title: "lag e acumulados", text: "Outros cálculos úteis sobre histórico ordenado." }
+        { title: "Fixture", text: "Pequeno conjunto de dados criado para representar casos normais e de borda." },
+        { title: "Resultado esperado", text: "DataFrame com valores e schema definidos antes de executar a solução." },
+        { title: "Ordem", text: "Só deve ser comparada quando fizer parte do contrato; DataFrames não têm ordem implícita." },
+        { title: "Teste de schema", text: "Nomes, tipos e nulabilidade também fazem parte da correção." }
       ],
-      sql: `SELECT * EXCEPT (rn)
-FROM (
-  SELECT p.*,
-    ROW_NUMBER() OVER (
-      PARTITION BY id_pedido
-      ORDER BY atualizado_em DESC
-    ) AS rn
-  FROM pedidos_historico p
-) x
-WHERE rn = 1;`,
-      pyspark: `janela = Window.partitionBy("id_pedido").orderBy(
-    F.col("atualizado_em").desc()
-)
-
-pedidos_atuais = (
-    pedidos_historico
-    .withColumn("rn", F.row_number().over(janela))
-    .filter(F.col("rn") == 1)
-    .drop("rn")
-)`,
-      exercise: "Mantenha o registro mais recente de cada cliente usando id_cliente e atualizado_em.",
-      starter: `janela = Window.partitionBy(____).orderBy(____)
-
-clientes_atuais = (
-    clientes_historico
-    .withColumn("rn", ____)
-    .filter(____)
-    .drop("rn")
-)`,
-      hint: "Use row_number().over(janela) e filtre rn == 1.",
-      solution: `janela = Window.partitionBy("id_cliente").orderBy(
-    F.col("atualizado_em").desc()
-)
-
-clientes_atuais = (
-    clientes_historico
-    .withColumn("rn", F.row_number().over(janela))
-    .filter(F.col("rn") == 1)
-    .drop("rn")
-)`,
+      sql: code([
+        "SELECT id_cliente, UPPER(TRIM(nome)) AS nome_normalizado",
+        "FROM clientes",
+        "WHERE id_cliente IS NOT NULL",
+        "ORDER BY id_cliente;"
+      ]),
+      pyspark: code([
+        "from pyspark.testing.utils import assertDataFrameEqual",
+        "",
+        "resultado = (",
+        "    clientes.filter(F.col(\"id_cliente\").isNotNull())",
+        "    .select(\"id_cliente\", F.upper(F.trim(\"nome\")).alias(\"nome_normalizado\"))",
+        "    .orderBy(\"id_cliente\")",
+        ")",
+        "",
+        "assertDataFrameEqual(resultado, esperado, checkRowOrder=True)"
+      ]),
+      exercise: "Crie resultado removendo id_cliente nulo e normalizando nome com trim e upper. Selecione id_cliente e nome_normalizado e ordene por id_cliente.",
+      starter: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = clientes"
+      ]),
+      hint: "Filtre isNotNull, normalize dentro de select e finalize com orderBy.",
+      solution: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = (",
+        "    clientes.filter(F.col(\"id_cliente\").isNotNull())",
+        "    .select(",
+        "        \"id_cliente\",",
+        "        F.upper(F.trim(\"nome\")).alias(\"nome_normalizado\")",
+        "    )",
+        "    .orderBy(\"id_cliente\")",
+        ")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT id_cliente, nome FROM clientes;"
+      ]),
+      sqlSolution: code([
+        "SELECT id_cliente, UPPER(TRIM(nome)) AS nome_normalizado",
+        "FROM clientes WHERE id_cliente IS NOT NULL",
+        "ORDER BY id_cliente;"
+      ]),
+      expected: {
+        columns: ["id_cliente", "nome_normalizado"],
+        rows: [[1, "ANA"], [2, "BIA"]],
+        ordered: true
+      },
+      tables: [
+        { name: "clientes", columns: ["id_cliente", "nome"], rows: [[2, " bia "], [null, "sem id"], [1, " Ana "]] }
+      ],
+      assessment: assessment(
+        [{ name: "clientes", schema: "id_cliente: long nullable, nome: string" }],
+        "id_cliente: long, nome_normalizado: string",
+        [{ id_cliente: 1, nome_normalizado: "ANA" }, { id_cliente: 2, nome_normalizado: "BIA" }],
+        ["Nome nulo permanece nulo.", "Entrada vazia conserva schema.", "Ordem faz parte deste contrato."],
+        ["Sem PythonUDF."]
+      ),
+      sources: [SOURCE.testing, SOURCE.chispa, SOURCE.examples],
       quiz: {
-        question: "Como row_number seleciona a versão mais recente de cada chave?",
-        options: ["Agrupa sem ordenar", "Particiona pela chave, ordena atualização desc e mantém rn = 1", "Usa collect em cada chave", "Aplica cache e distinct"],
-        correct: 1,
-        explanation: "A partição cria um ranking por entidade; ordenar a data decrescente coloca a versão mais recente na posição 1."
+        question: "Quando checkRowOrder deve ser exigido?",
+        options: ["Sempre", "Nunca", "Quando a ordem faz parte explícita do contrato", "Somente em joins"],
+        correct: 2,
+        explanation: "Sem orderBy, a ordem não é garantida; o teste deve refletir o contrato real."
       }
     },
     {
       id: 18,
       week: 4,
-      title: "Gravar tabelas Delta gerenciadas",
-      subtitle: "Saídas confiáveis no Databricks Free Edition",
-      objective: "Escolher modo de gravação e particionamento ao salvar uma tabela Delta gerenciada.",
-      intro: "No Databricks, Delta adiciona transações e histórico sobre arquivos Parquet. No Free Edition, prefira tabelas gerenciadas pelo Unity Catalog em vez de caminhos soltos como /gold ou /silver.",
-      analogy: "Parquet organiza os arquivos para análise; Delta acrescenta um diário transacional que controla versões e mudanças.",
+      title: "Escrita idempotente em Parquet e tabelas",
+      subtitle: "Save modes, particionamento e saídas verificáveis",
+      objective: "Gravar uma tabela gerenciada em Parquet, escolher o modo e reler o resultado.",
+      intro: "Uma saída é parte do contrato do pipeline. Formato, schema, modo de gravação e estratégia de repetição precisam ser explícitos.",
+      analogy: "INSERT, INSERT OVERWRITE e CREATE OR REPLACE possuem consequências diferentes. A DataFrameWriter expressa decisões equivalentes fora de uma instrução SQL.",
       concepts: [
-        { title: "append / overwrite", text: "Append acrescenta dados; overwrite substitui o destino ou partições conforme a configuração." },
-        { title: "Delta Lake", text: "Adiciona log transacional, ACID, schema enforcement, merge e time travel." },
-        { title: "Tabela gerenciada", text: "O catálogo controla o nome e o local de armazenamento; saveAsTable grava sem exigir um caminho manual." },
-        { title: "partitionBy na escrita", text: "Organiza fisicamente a tabela por valores, útil para filtros frequentes e colunas de baixa cardinalidade." },
-        { title: "Small files", text: "Arquivos pequenos demais aumentam metadados e podem prejudicar leituras." }
+        { title: "Save mode", text: "append, overwrite, ignore e errorifexists tratam destinos existentes de formas diferentes." },
+        { title: "Tabela gerenciada", text: "O catálogo controla metadados e localização padrão da tabela." },
+        { title: "Idempotência", text: "Reexecutar com a mesma entrada deve produzir o estado final esperado, sem duplicar acidentalmente." },
+        { title: "Delta opcional", text: "Delta Lake adiciona log transacional e outras garantias, mas não é requisito para aprender Spark." }
       ],
-      sql: `CREATE SCHEMA IF NOT EXISTS spark_mentor;
-
-CREATE OR REPLACE TABLE spark_mentor.vendas_mensais
-USING DELTA
-PARTITIONED BY (ano_mes)
-AS SELECT * FROM vw_vendas_mensais;
-
-SELECT * FROM spark_mentor.vendas_mensais
-VERSION AS OF 0;`,
-      pyspark: `spark.sql("CREATE SCHEMA IF NOT EXISTS spark_mentor")
-
-(
-    vendas_limpas
-    .write
-    .format("delta")
-    .mode("overwrite")
-    .partitionBy("ano_mes")
-    .saveAsTable("spark_mentor.vendas_mensais")
-)
-
-releitura = (
-    spark.read.table("spark_mentor.vendas_mensais")
-    .filter(F.col("ano_mes") == "2026-07")
-)`,
-      exercise: "Crie o schema spark_mentor, grave pedidos_validos como a tabela Delta gerenciada spark_mentor.pedidos no modo overwrite, particione por ano_mes e releia a tabela.",
-      starter: `spark.sql("CREATE SCHEMA IF NOT EXISTS ____")
-
-(
-    pedidos_validos.write
-    # formato, modo, partição e tabela gerenciada
-)
-
-resultado = spark.read.____(____)`,
-      hint: "Crie o schema spark_mentor e encadeie format('delta'), mode('overwrite'), partitionBy('ano_mes') e saveAsTable('spark_mentor.pedidos').",
-      solution: `spark.sql("CREATE SCHEMA IF NOT EXISTS spark_mentor")
-
-(
-    pedidos_validos.write
-    .format("delta")
-    .mode("overwrite")
-    .partitionBy("ano_mes")
-    .saveAsTable("spark_mentor.pedidos")
-)
-
-resultado = spark.read.table("spark_mentor.pedidos")`,
+      sql: code([
+        "CREATE OR REPLACE TABLE pedidos_saida",
+        "USING PARQUET",
+        "AS SELECT id_pedido, status, valor FROM pedidos;",
+        "",
+        "SELECT * FROM pedidos_saida ORDER BY id_pedido;"
+      ]),
+      pyspark: code([
+        "saida = pedidos.select(\"id_pedido\", \"status\", \"valor\")",
+        "(saida.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(tabela))",
+        "resultado = spark.table(tabela).orderBy(\"id_pedido\")"
+      ]),
+      exercise: "Selecione id_pedido, status e valor, grave com overwrite em formato parquet usando saveAsTable(tabela) e releia em resultado ordenado por id_pedido.",
+      starter: code([
+        "saida = pedidos.select(\"id_pedido\", \"status\", \"valor\")",
+        "# configure a escrita e releia a tabela",
+        "resultado = saida"
+      ]),
+      hint: "Use saida.write.mode('overwrite').format('parquet').saveAsTable(tabela) e spark.table.",
+      solution: code([
+        "saida = pedidos.select(\"id_pedido\", \"status\", \"valor\")",
+        "saida.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(tabela)",
+        "resultado = spark.table(tabela).orderBy(\"id_pedido\")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT id_pedido, status, valor FROM pedidos;"
+      ]),
+      sqlSolution: code([
+        "CREATE OR REPLACE TABLE pedidos_saida",
+        "USING PARQUET",
+        "AS SELECT id_pedido, status, valor FROM pedidos;",
+        "SELECT * FROM pedidos_saida ORDER BY id_pedido;"
+      ]),
+      expected: {
+        columns: ["id_pedido", "status", "valor"],
+        rows: [[1, "APROVADO", 10.0], [2, "PENDENTE", 7.5]],
+        ordered: true
+      },
+      tables: [
+        { name: "pedidos", columns: ["id_pedido", "status", "valor"], rows: [[2, "PENDENTE", 7.5], [1, "APROVADO", 10.0]] }
+      ],
+      assessment: assessment(
+        [
+          { name: "pedidos", schema: "id_pedido: long, status: string, valor: double" },
+          { name: "tabela", schema: "nome isolado fornecido pelo avaliador" }
+        ],
+        "id_pedido: long, status: string, valor: double",
+        [{ id_pedido: 1, status: "APROVADO", valor: 10.0 }, { id_pedido: 2, status: "PENDENTE", valor: 7.5 }],
+        ["Duas execuções com overwrite não duplicam linhas.", "A tabela de teste deve ser removida pelo sandbox após a avaliação."]
+      ),
+      sources: [SOURCE.dataSources, SOURCE.parquet, SOURCE.delta],
       quiz: {
-        question: "O que Delta acrescenta ao armazenamento Parquet?",
-        options: ["Somente arquivos CSV auxiliares", "Log transacional, ACID, versões e operações como merge", "Uma linguagem que substitui Python", "Memória infinita"],
+        question: "Qual modo é naturalmente adequado a uma reconstrução completa idempotente?",
+        options: ["append sem chave", "overwrite controlado", "ignore", "collect"],
         correct: 1,
-        explanation: "Delta usa Parquet como dados e adiciona um log que habilita garantias transacionais e evolução controlada."
+        explanation: "Overwrite pode reconstruir o destino; ainda exige cuidado com escopo, partições e concorrência."
       }
     },
     {
       id: 19,
       week: 4,
-      title: "Projeto: pipeline de vendas",
-      subtitle: "Bronze, Silver e Gold",
-      objective: "Unir ingestão, limpeza, joins e métricas em um pipeline pequeno e verificável.",
-      intro: "O projeto consolida a trilha: dados brutos entram em Bronze, são limpos em Silver e viram métricas de negócio em Gold.",
-      analogy: "Silver funciona como uma camada de dados confiáveis; Gold se aproxima do modelo pronto para o Power BI.",
+      title: "Projeto: pipeline de viagens",
+      subtitle: "Dados brutos, validação e resumo analítico",
+      objective: "Combinar tipagem, filtro, datas e agregação em um pipeline pequeno e reconciliável.",
+      intro: "O projeto usa uma amostra sintética inspirada no formato de dados públicos de viagens. O objetivo é produzir uma tabela mensal por zona, mantendo etapas legíveis.",
+      analogy: "Pense em três contratos: entrada bruta, dados validados e resumo. Os nomes das camadas importam menos que as regras e a rastreabilidade entre elas.",
       concepts: [
-        { title: "Bronze", text: "Dados recebidos com mínima transformação e rastreabilidade da origem." },
-        { title: "Silver", text: "Dados tipados, deduplicados, validados e integrados." },
-        { title: "Gold", text: "Tabelas orientadas a métricas e consumidores analíticos." },
-        { title: "Reconciliação", text: "Compara contagens e valores em cada passagem para detectar perdas ou multiplicações." }
+        { title: "Entrada bruta", text: "Preserva campos recebidos e torna o schema de origem explícito." },
+        { title: "Validação", text: "Converte tipos e remove somente registros que violam regras declaradas." },
+        { title: "Resumo", text: "Agrega na granularidade mês e zona com métricas reconciliáveis." },
+        { title: "Reconciliação", text: "Contagens e somas entre etapas ajudam a detectar perda ou duplicação indevida." }
       ],
-      sql: `CREATE OR REPLACE TEMP VIEW gold_vendas AS
-SELECT
-  DATE_TRUNC('month', data_pedido) AS mes,
-  categoria,
-  SUM(quantidade * preco_unitario) AS faturamento,
-  COUNT(DISTINCT id_pedido) AS pedidos
-FROM silver_vendas
-WHERE status = 'APROVADO'
-GROUP BY 1, 2;`,
-      pyspark: `silver = (
-    pedidos
-    .filter(F.col("status") == "APROVADO")
-    .join(clientes, "id_cliente", "left")
-    .join(produtos, "id_produto", "left")
-    .withColumn("valor", F.col("quantidade") * F.col("preco_unitario"))
-)
-
-gold = (
-    silver
-    .withColumn("mes", F.date_trunc("month", "data_pedido"))
-    .groupBy("mes", "categoria")
-    .agg(
-        F.sum("valor").alias("faturamento"),
-        F.countDistinct("id_pedido").alias("pedidos")
-    )
-)`,
-      exercise: "Monte uma Gold com faturamento, ticket médio e clientes únicos por mês e categoria. Inclua apenas aprovados.",
-      starter: `gold = (
-    silver
-    # filtro, mês, agrupamento e métricas
-)`,
-      hint: "Crie mes com date_trunc, agrupe por mes/categoria e use sum, avg e countDistinct.",
-      solution: `gold = (
-    silver
-    .filter(F.col("status") == "APROVADO")
-    .withColumn("mes", F.date_trunc("month", "data_pedido"))
-    .groupBy("mes", "categoria")
-    .agg(
-        F.sum("valor").alias("faturamento"),
-        F.avg("valor").alias("ticket_medio"),
-        F.countDistinct("id_cliente").alias("clientes_unicos")
-    )
-)`,
+      sql: code([
+        "SELECT DATE_TRUNC('month', TO_TIMESTAMP(inicio)) AS mes,",
+        "       zona, COUNT(*) AS viagens, SUM(valor) AS valor_total",
+        "FROM viagens",
+        "WHERE status = 'VALIDA' AND valor >= 0",
+        "GROUP BY 1, zona ORDER BY mes, zona;"
+      ]),
+      pyspark: code([
+        "validas = (",
+        "    viagens.withColumn(\"inicio_ts\", F.to_timestamp(\"inicio\"))",
+        "    .filter((F.col(\"status\") == \"VALIDA\") & (F.col(\"valor\") >= 0))",
+        ")",
+        "resultado = (",
+        "    validas.withColumn(\"mes\", F.date_trunc(\"month\", \"inicio_ts\"))",
+        "    .groupBy(\"mes\", \"zona\")",
+        "    .agg(F.count(\"*\").alias(\"viagens\"), F.sum(\"valor\").alias(\"valor_total\"))",
+        "    .orderBy(\"mes\", \"zona\")",
+        ")"
+      ]),
+      exercise: "Converta inicio para timestamp, mantenha status VALIDA e valor >= 0 e agregue viagens e valor_total por mês e zona. Grave resultado ordenado.",
+      starter: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "resultado = viagens"
+      ]),
+      hint: "Separe a etapa validas da agregação; use to_timestamp, date_trunc, groupBy e agg.",
+      solution: code([
+        "from pyspark.sql import functions as F",
+        "",
+        "validas = (",
+        "    viagens.withColumn(\"inicio_ts\", F.to_timestamp(\"inicio\"))",
+        "    .filter((F.col(\"status\") == \"VALIDA\") & (F.col(\"valor\") >= 0))",
+        ")",
+        "resultado = (",
+        "    validas.withColumn(\"mes\", F.date_trunc(\"month\", \"inicio_ts\"))",
+        "    .groupBy(\"mes\", \"zona\")",
+        "    .agg(",
+        "        F.count(\"*\").alias(\"viagens\"),",
+        "        F.sum(\"valor\").alias(\"valor_total\")",
+        "    )",
+        "    .orderBy(\"mes\", \"zona\")",
+        ")"
+      ]),
+      practiceMode: "pyspark",
+      sqlStarter: code([
+        "SELECT zona, COUNT(*) AS viagens",
+        "FROM viagens GROUP BY zona;"
+      ]),
+      sqlSolution: code([
+        "SELECT DATE_TRUNC('month', TO_TIMESTAMP(inicio)) AS mes,",
+        "       zona, COUNT(*) AS viagens, SUM(valor) AS valor_total",
+        "FROM viagens",
+        "WHERE status = 'VALIDA' AND valor >= 0",
+        "GROUP BY 1, zona ORDER BY mes, zona;"
+      ]),
+      expected: {
+        columns: ["mes", "zona", "viagens", "valor_total"],
+        rows: [["2026-01-01 00:00:00", "Centro", 2, 25.0], ["2026-02-01 00:00:00", "Norte", 1, 8.0]],
+        ordered: true
+      },
+      tables: [
+        {
+          name: "viagens",
+          columns: ["id_viagem", "inicio", "zona", "valor", "status"],
+          rows: [[1, "2026-01-05 10:00:00", "Centro", 10.0, "VALIDA"], [2, "2026-01-20 12:00:00", "Centro", 15.0, "VALIDA"], [3, "2026-01-21 09:00:00", "Sul", -2.0, "VALIDA"], [4, "2026-02-02 14:00:00", "Norte", 8.0, "VALIDA"], [5, "2026-02-03 08:00:00", "Norte", 99.0, "CANCELADA"]]
+        }
+      ],
+      assessment: assessment(
+        [{ name: "viagens", schema: "id_viagem: long, inicio: string, zona: string, valor: double, status: string" }],
+        "mes: timestamp, zona: string, viagens: long, valor_total: double",
+        [
+          { mes: "2026-01-01 00:00:00", zona: "Centro", viagens: 2, valor_total: 25.0 },
+          { mes: "2026-02-01 00:00:00", zona: "Norte", viagens: 1, valor_total: 8.0 }
+        ],
+        ["Valor negativo e status cancelado não entram.", "Timestamp inválido deve ser rejeitado ou tratado conforme contrato.", "Total de viagens do resumo deve reconciliar com válidas."]
+      ),
+      sources: [SOURCE.nycTlc, SOURCE.parquet, SOURCE.testing],
       quiz: {
-        question: "Antes de confiar no faturamento depois dos joins, o que deve ser validado?",
-        options: ["A cor do notebook", "Cardinalidade, duplicações e reconciliação de totais", "Apenas o tempo de execução", "Somente o nome das colunas"],
+        question: "Qual verificação melhor reconcilia o projeto?",
+        options: ["Comparar apenas nomes de variáveis", "Confirmar contagem e soma das válidas antes e depois da agregação", "Usar collect em toda etapa", "Remover todos os nulos sem regra"],
         correct: 1,
-        explanation: "Joins podem multiplicar linhas. Compare contagens e somas antes/depois e valide a unicidade das dimensões."
+        explanation: "Contagens e totais ajudam a identificar perda ou duplicação entre etapas."
       }
     },
     {
       id: 20,
       week: 4,
       title: "Consolidação e próximos passos",
-      subtitle: "Escolher SQL ou PySpark com intenção",
-      objective: "Revisar a arquitetura, justificar escolhas e planejar a evolução no Databricks.",
-      intro: "Você não precisa abandonar SQL. Spark SQL e PySpark são duas formas de expressar planos na mesma engine; a escolha depende do problema e da equipe.",
-      analogy: "SQL é excelente para transformações declarativas. PySpark ajuda quando o fluxo exige composição, funções, parâmetros, testes e reutilização.",
+      subtitle: "Explicar decisões antes de ampliar o ecossistema",
+      objective: "Consolidar o modelo mental de Spark e criar um plano de evolução fundamentado.",
+      intro: "Ao terminar, você deve conseguir explicar não apenas a sintaxe, mas por que uma transformação está correta e como o Spark tende a executá-la.",
+      analogy: "SQL continua sendo uma ferramenta central. PySpark acrescenta composição programática; ambos podem expressar planos para a mesma engine.",
       concepts: [
-        { title: "Spark SQL", text: "Ótimo para consultas, modelos analíticos e colaboração com profissionais de dados que dominam SQL." },
-        { title: "PySpark", text: "Útil para pipelines programáticos, abstrações, automação e integração com código Python." },
-        { title: "Performance", text: "Em operações equivalentes, ambos podem gerar o mesmo plano otimizado." },
-        { title: "Próxima etapa", text: "Pratique com dados reais, acompanhe o Spark UI e aprenda Delta/Jobs gradualmente." }
+        { title: "Correção", text: "Schema, linhas e casos de borda vêm antes de performance." },
+        { title: "Plano", text: "explain e métricas conectam intenção lógica ao trabalho físico." },
+        { title: "Escolha de interface", text: "SQL favorece clareza declarativa; PySpark favorece composição e reutilização." },
+        { title: "Próximas trilhas", text: "Structured Streaming, Delta Lake, testes avançados e operação de clusters podem vir depois dos fundamentos." }
       ],
-      sql: `SELECT
-  estado,
-  SUM(valor) AS faturamento
-FROM silver_vendas
-WHERE status = 'APROVADO'
-GROUP BY estado;`,
-      pyspark: `resultado = (
-    silver_vendas
-    .filter(F.col("status") == "APROVADO")
-    .groupBy("estado")
-    .agg(F.sum("valor").alias("faturamento"))
-)
-
-# Compare os planos das duas versões.
-resultado.explain("formatted")`,
-      exercise: "Escreva cinco tópicos explicando: o que é Spark, DataFrame, lazy evaluation, partition/shuffle e quando você escolheria SQL ou PySpark.",
-      starter: `1. Spark é...
-2. Um DataFrame...
-3. Lazy evaluation...
-4. Partition e shuffle...
-5. Eu escolheria...`,
-      hint: "Use suas próprias palavras. Se conseguir explicar sem copiar, o conceito já está ficando sólido.",
-      solution: `1. Spark é uma engine distribuída que coordena processamento de dados.
-2. DataFrame é uma coleção distribuída, tabular, tipada e imutável.
-3. Lazy evaluation adia o processamento para otimizar o plano completo.
-4. Partition divide os dados; shuffle redistribui registros entre partições.
-5. SQL é direto para transformações declarativas; PySpark favorece fluxos programáticos e reutilizáveis.`,
+      sql: code([
+        "SELECT estado, SUM(valor) AS faturamento",
+        "FROM pedidos",
+        "WHERE status = 'APROVADO'",
+        "GROUP BY estado;"
+      ]),
+      pyspark: code([
+        "resultado = (",
+        "    pedidos.filter(F.col(\"status\") == \"APROVADO\")",
+        "    .groupBy(\"estado\")",
+        "    .agg(F.sum(\"valor\").alias(\"faturamento\"))",
+        ")"
+      ]),
+      exercise: "Escreva uma retrospectiva em cinco partes: Spark versus banco; DataFrame e schema; lazy evaluation; partition e shuffle; quando usar SQL ou PySpark. Termine com duas próximas práticas concretas.",
+      starter: code([
+        "# Minha retrospectiva",
+        "",
+        "## 1. Spark versus banco",
+        "",
+        "## 2. DataFrame e schema",
+        "",
+        "## 3. Lazy evaluation",
+        "",
+        "## 4. Partition e shuffle",
+        "",
+        "## 5. SQL ou PySpark",
+        "",
+        "## Próximas práticas"
+      ]),
+      hint: "Use exemplos das aulas e explique relações de causa e efeito, não apenas definições.",
+      solution: code([
+        "# Resposta de referência",
+        "",
+        "1. Spark é uma engine; bancos também armazenam e gerenciam dados.",
+        "2. DataFrame representa dados tipados e um plano imutável.",
+        "3. Transformations são adiadas até uma action solicitar resultado.",
+        "4. Partitions permitem paralelismo; shuffle redistribui registros e tem custo.",
+        "5. SQL é ótimo para lógica declarativa; PySpark ajuda a compor código reutilizável.",
+        "",
+        "Próximas práticas: testar um pipeline com dados públicos e estudar Structured Streaming."
+      ]),
+      practiceMode: "reflection",
+      sqlStarter: code([
+        "-- Reescreva em suas palavras quando esta consulta é uma boa escolha.",
+        "SELECT estado, SUM(valor) FROM pedidos GROUP BY estado;"
+      ]),
+      sqlSolution: code([
+        "-- SQL é adequado quando a transformação é naturalmente relacional e declarativa.",
+        "SELECT estado, SUM(valor) AS faturamento",
+        "FROM pedidos GROUP BY estado;"
+      ]),
+      expected: {
+        columns: [],
+        rows: [],
+        ordered: false
+      },
+      tables: [],
+      assessment: {
+        entrypoint: "reflexao",
+        checks: ["cinco conceitos cobertos", "duas próximas práticas", "texto autoral"],
+        edgeCases: ["Não exigir código executável nesta aula."]
+      },
+      sources: [SOURCE.docs, SOURCE.testing, SOURCE.streaming, SOURCE.delta],
       quiz: {
-        question: "Qual critério é mais correto ao escolher entre Spark SQL e PySpark?",
-        options: ["PySpark é sempre mais rápido", "SQL nunca deve ser usado no Spark", "Escolher a sintaxe adequada ao problema; operações equivalentes podem gerar o mesmo plano", "Usar ambos obrigatoriamente em toda célula"],
+        question: "Qual afirmação demonstra o modelo mental mais sólido?",
+        options: ["PySpark é sempre mais rápido que SQL", "Toda transformação executa imediatamente", "SQL e DataFrame API podem gerar planos equivalentes; correção e contexto orientam a escolha", "Mais partições sempre melhoram performance"],
         correct: 2,
-        explanation: "O otimizador trabalha com planos, não com preferência de sintaxe. Clareza, equipe e necessidade de programação orientam a escolha."
+        explanation: "O Spark otimiza planos. Interface, correção, legibilidade e características dos dados orientam a decisão."
       }
     }
   ];
 
   const weekInfo = [
-    { week: 1, title: "Fundamentos e DataFrames", description: "Entenda a arquitetura e domine as primeiras transformações." },
-    { week: 2, title: "Spark SQL e análise", description: "Use seu conhecimento de SQL para consultar, agregar e combinar dados." },
-    { week: 3, title: "Execução e performance", description: "Veja como partitions, shuffle, cache e joins afetam o cluster." },
-    { week: 4, title: "Pipeline no Databricks", description: "Trate qualidade, grave em Delta e monte um projeto de vendas." }
+    {
+      week: 1,
+      title: "De SQL para Spark",
+      description: "Use seu repertório SQL para entender SparkSession, DataFrames, PySpark, schemas e nulos."
+    },
+    {
+      week: 2,
+      title: "Transformações corretas",
+      description: "Leia dados, aplique funções, agregue, combine tabelas e use janelas com resultados verificáveis."
+    },
+    {
+      week: 3,
+      title: "Como o Spark executa",
+      description: "Entenda lazy evaluation, jobs, partitions, shuffle, estratégias de join e planos físicos."
+    },
+    {
+      week: 4,
+      title: "Código confiável e projeto",
+      description: "Crie contratos de qualidade, testes de DataFrame, saídas idempotentes e um pipeline completo."
+    }
   ];
 
   const labOperations = [
     {
       id: "select",
-      label: "Selecionar colunas",
+      label: "Selecionar",
       title: "SELECT → select",
-      description: "Escolha apenas as colunas necessárias. Isso também ajuda o Spark a evitar leitura e transporte desnecessários.",
-      sql: `SELECT id_pedido, status, quantidade
-FROM pedidos;`,
-      pyspark: `resultado = pedidos.select(
-    "id_pedido",
-    "status",
-    "quantidade"
-)`,
-      note: "Em ambos os casos, o resultado continua sendo um DataFrame e ainda não precisa ter sido executado."
+      description: "Escolha apenas as colunas necessárias e dê nomes explícitos às expressões.",
+      sql: code([
+        "SELECT id_pedido, valor AS valor_bruto",
+        "FROM pedidos;"
+      ]),
+      pyspark: code([
+        "resultado = pedidos.select(",
+        "    \"id_pedido\",",
+        "    F.col(\"valor\").alias(\"valor_bruto\")",
+        ")"
+      ]),
+      note: "A projeção reduz a quantidade de colunas transportadas e torna o contrato de saída explícito."
     },
     {
       id: "filter",
-      label: "Filtrar linhas",
+      label: "Filtrar",
       title: "WHERE → filter",
-      description: "Combine condições com &, | e ~. Cada expressão precisa de parênteses na DataFrame API.",
-      sql: `SELECT *
-FROM pedidos
-WHERE status = 'APROVADO'
-  AND quantidade >= 2;`,
-      pyspark: `resultado = pedidos.filter(
-    (F.col("status") == "APROVADO") &
-    (F.col("quantidade") >= 2)
-)`,
-      note: "filter e where são equivalentes no PySpark. Use a forma que deixar o código mais claro."
+      description: "Combine condições com operadores de coluna, sempre usando parênteses.",
+      sql: code([
+        "SELECT * FROM pedidos",
+        "WHERE status = 'APROVADO' AND quantidade >= 2;"
+      ]),
+      pyspark: code([
+        "resultado = pedidos.filter(",
+        "    (F.col(\"status\") == \"APROVADO\") &",
+        "    (F.col(\"quantidade\") >= 2)",
+        ")"
+      ]),
+      note: "filter e where são equivalentes na DataFrame API."
     },
     {
       id: "case",
       label: "CASE WHEN",
       title: "CASE WHEN → when",
-      description: "Crie classificações e regras condicionais sem recorrer a funções Python linha a linha.",
-      sql: `SELECT
-  CASE
-    WHEN valor >= 1000 THEN 'ALTO'
-    WHEN valor >= 500 THEN 'MÉDIO'
-    ELSE 'BAIXO'
-  END AS faixa
-FROM vendas;`,
-      pyspark: `resultado = vendas.withColumn(
-    "faixa",
-    F.when(F.col("valor") >= 1000, "ALTO")
-     .when(F.col("valor") >= 500, "MÉDIO")
-     .otherwise("BAIXO")
-)`,
-      note: "Prefira funções nativas do Spark: o otimizador entende essas expressões e pode planejar melhor."
+      description: "Expresse regras condicionais com funções nativas que o Spark consegue analisar.",
+      sql: code([
+        "SELECT CASE WHEN valor >= 1000 THEN 'ALTO'",
+        "            WHEN valor >= 500 THEN 'MEDIO'",
+        "            ELSE 'BAIXO' END AS faixa",
+        "FROM vendas;"
+      ]),
+      pyspark: code([
+        "resultado = vendas.withColumn(",
+        "    \"faixa\",",
+        "    F.when(F.col(\"valor\") >= 1000, \"ALTO\")",
+        "     .when(F.col(\"valor\") >= 500, \"MEDIO\")",
+        "     .otherwise(\"BAIXO\")",
+        ")"
+      ]),
+      note: "Evite uma função Python linha a linha quando houver uma função nativa equivalente."
     },
     {
       id: "group",
       label: "Agrupar",
       title: "GROUP BY → groupBy + agg",
-      description: "As chaves do agrupamento definem a granularidade do resultado.",
-      sql: `SELECT estado, SUM(valor) AS faturamento
-FROM vendas
-GROUP BY estado;`,
-      pyspark: `resultado = (
-    vendas
-    .groupBy("estado")
-    .agg(F.sum("valor").alias("faturamento"))
-)`,
-      note: "groupBy normalmente provoca shuffle porque registros do mesmo estado precisam chegar ao mesmo conjunto de tasks."
+      description: "As chaves de agrupamento determinam a granularidade do resultado.",
+      sql: code([
+        "SELECT estado, SUM(valor) AS faturamento",
+        "FROM vendas GROUP BY estado;"
+      ]),
+      pyspark: code([
+        "resultado = (",
+        "    vendas.groupBy(\"estado\")",
+        "    .agg(F.sum(\"valor\").alias(\"faturamento\"))",
+        ")"
+      ]),
+      note: "Agrupamentos normalmente exigem shuffle para reunir chaves iguais."
     },
     {
       id: "join",
-      label: "Combinar tabelas",
+      label: "Combinar",
       title: "JOIN → join",
-      description: "Defina chave e tipo do join e valide a cardinalidade antes de confiar nas métricas.",
-      sql: `SELECT p.*, c.estado
-FROM pedidos p
-LEFT JOIN clientes c
-  ON p.id_cliente = c.id_cliente;`,
-      pyspark: `resultado = pedidos.join(
-    clientes.select("id_cliente", "estado"),
-    on="id_cliente",
-    how="left"
-)`,
-      note: "Quando a chave tem o mesmo nome nos dois DataFrames, usar on='id_cliente' evita duplicar essa coluna."
+      description: "Defina a chave, o tipo de join e valide a cardinalidade.",
+      sql: code([
+        "SELECT p.*, c.estado",
+        "FROM pedidos p LEFT JOIN clientes c",
+        "  ON p.id_cliente = c.id_cliente;"
+      ]),
+      pyspark: code([
+        "resultado = pedidos.join(",
+        "    clientes.select(\"id_cliente\", \"estado\"),",
+        "    on=\"id_cliente\",",
+        "    how=\"left\"",
+        ")"
+      ]),
+      note: "Uma chave duplicada no lado direito pode multiplicar linhas sem gerar erro técnico."
     },
     {
       id: "window",
       label: "Janela",
       title: "OVER → Window",
-      description: "Calcule rankings e históricos dentro de grupos sem reduzir as linhas.",
-      sql: `SELECT *,
-  ROW_NUMBER() OVER (
-    PARTITION BY id_cliente
-    ORDER BY data_pedido DESC
-  ) AS rn
-FROM pedidos;`,
-      pyspark: `janela = Window.partitionBy("id_cliente").orderBy(
-    F.col("data_pedido").desc()
-)
-
-resultado = pedidos.withColumn(
-    "rn",
-    F.row_number().over(janela)
-)`,
-      note: "A Window specification separa o desenho da janela da função que será calculada sobre ela."
+      description: "Calcule rankings e versões dentro de grupos sem reduzir as linhas.",
+      sql: code([
+        "SELECT *, ROW_NUMBER() OVER (",
+        "  PARTITION BY id_cliente ORDER BY atualizado_em DESC",
+        ") AS rn FROM clientes_historico;"
+      ]),
+      pyspark: code([
+        "janela = Window.partitionBy(\"id_cliente\").orderBy(",
+        "    F.col(\"atualizado_em\").desc()",
+        ")",
+        "resultado = clientes_historico.withColumn(",
+        "    \"rn\", F.row_number().over(janela)",
+        ")"
+      ]),
+      note: "Inclua um segundo critério de ordenação quando puder haver empates."
     },
     {
       id: "nulls",
       label: "Tratar nulos",
       title: "COALESCE → coalesce",
-      description: "Substitua nulos com intenção e mantenha o significado de negócio.",
-      sql: `SELECT
-  id_produto,
-  COALESCE(preco, 0) AS preco
-FROM produtos;`,
-      pyspark: `resultado = produtos.select(
-    "id_produto",
-    F.coalesce(F.col("preco"), F.lit(0)).alias("preco")
-)`,
-      note: "DataFrame.fillna também é útil quando você quer preencher várias colunas por nome."
+      description: "Nulo significa valor desconhecido; substitua-o apenas quando a regra permitir.",
+      sql: code([
+        "SELECT id_produto, COALESCE(preco, 0) AS preco",
+        "FROM produtos;"
+      ]),
+      pyspark: code([
+        "resultado = produtos.select(",
+        "    \"id_produto\",",
+        "    F.coalesce(F.col(\"preco\"), F.lit(0.0)).alias(\"preco\")",
+        ")"
+      ]),
+      note: "COUNT(*) e COUNT(coluna) têm semânticas diferentes quando há nulos."
     },
     {
       id: "date",
       label: "Datas",
       title: "DATE_TRUNC → date_trunc",
-      description: "Transforme datas em períodos consistentes para análise.",
-      sql: `SELECT
-  DATE_TRUNC('month', data_pedido) AS mes,
-  SUM(valor) AS faturamento
-FROM vendas
-GROUP BY 1;`,
-      pyspark: `resultado = (
-    vendas
-    .withColumn("mes", F.date_trunc("month", "data_pedido"))
-    .groupBy("mes")
-    .agg(F.sum("valor").alias("faturamento"))
-)`,
-      note: "Garanta que data_pedido seja date ou timestamp antes de aplicar funções de data."
+      description: "Converta texto para date ou timestamp antes de criar períodos.",
+      sql: code([
+        "SELECT DATE_TRUNC('month', data_pedido) AS mes,",
+        "       SUM(valor) AS faturamento",
+        "FROM vendas GROUP BY 1;"
+      ]),
+      pyspark: code([
+        "resultado = (",
+        "    vendas.withColumn(\"mes\", F.date_trunc(\"month\", \"data_pedido\"))",
+        "    .groupBy(\"mes\")",
+        "    .agg(F.sum(\"valor\").alias(\"faturamento\"))",
+        ")"
+      ]),
+      note: "Datas armazenadas como string não possuem, por si só, semântica de calendário."
     }
   ];
 
   const glossary = [
-    { term: "Action", category: "Execução", definition: "Operação que exige um resultado e dispara o processamento, como count, show, collect ou write." },
-    { term: "Broadcast", category: "Performance", definition: "Envio de uma tabela pequena para cada executor, permitindo joins sem redistribuir a tabela grande." },
-    { term: "Cache", category: "Performance", definition: "Persistência de um resultado intermediário para evitar recomputação quando ele será reutilizado." },
-    { term: "Catalyst", category: "Spark SQL", definition: "Otimizador que analisa e transforma os planos lógicos de Spark SQL e DataFrames." },
-    { term: "Cluster", category: "Arquitetura", definition: "Conjunto de recursos de computação usados para executar uma aplicação Spark." },
-    { term: "DAG", category: "Execução", definition: "Grafo acíclico dirigido que representa as dependências entre as etapas de processamento." },
-    { term: "DataFrame", category: "Fundamentos", definition: "Coleção distribuída, imutável e tipada de dados organizados em linhas e colunas." },
-    { term: "Data skew", category: "Performance", definition: "Distribuição desigual na qual poucas chaves concentram muitas linhas e criam tasks lentas." },
-    { term: "Delta Lake", category: "Databricks", definition: "Camada de armazenamento baseada em Parquet que acrescenta log transacional, ACID, versões e operações como MERGE." },
-    { term: "Driver", category: "Arquitetura", definition: "Processo coordenador que interpreta o código, cria planos e agenda tarefas para os executors." },
-    { term: "Executor", category: "Arquitetura", definition: "Processo trabalhador que executa tasks sobre partições e pode armazenar dados em memória ou disco." },
-    { term: "Lazy evaluation", category: "Execução", definition: "Estratégia de adiar o processamento até uma action, permitindo otimizar o plano completo." },
-    { term: "Parquet", category: "Armazenamento", definition: "Formato colunar, comprimido e tipado, eficiente para cargas analíticas." },
-    { term: "Partition", category: "Arquitetura", definition: "Fração dos dados processada por uma task; base do paralelismo no Spark." },
-    { term: "Predicate pushdown", category: "Performance", definition: "Otimização que aplica filtros já na fonte de dados para ler menos registros." },
-    { term: "PySpark", category: "Fundamentos", definition: "API Python do Apache Spark, usada para descrever transformações e ações executadas pela engine." },
-    { term: "Schema", category: "Fundamentos", definition: "Contrato que define nomes, tipos e possibilidade de nulos das colunas." },
-    { term: "Shuffle", category: "Performance", definition: "Redistribuição de dados entre partições/executors, comum em joins, agregações e ordenações." },
-    { term: "SparkSession", category: "Fundamentos", definition: "Porta de entrada para ler dados, criar DataFrames e executar Spark SQL; no Databricks costuma ser spark." },
-    { term: "Task", category: "Execução", definition: "Menor unidade de trabalho enviada pelo driver a um executor, normalmente sobre uma partição." },
-    { term: "Temp view", category: "Spark SQL", definition: "Nome temporário registrado para consultar um DataFrame com SQL durante a sessão." },
-    { term: "Transformation", category: "Execução", definition: "Operação que descreve um novo DataFrame, como select, filter, join e withColumn." },
-    { term: "Window function", category: "Spark SQL", definition: "Cálculo dentro de grupos lógicos que preserva as linhas, usado em ranking, lag e acumulados." }
+    { term: "Action", category: "Execução", definition: "Operação que exige um resultado e dispara um job, como count, show, collect ou write." },
+    { term: "Adaptive Query Execution", category: "Performance", definition: "Otimização que ajusta partes do plano físico usando estatísticas coletadas durante a execução." },
+    { term: "ANSI mode", category: "Spark SQL", definition: "Modo em que operações inválidas, casts e overflows seguem regras mais próximas do SQL ANSI e tendem a gerar erros explícitos." },
+    { term: "Broadcast", category: "Performance", definition: "Envio de uma relação pequena aos executors para evitar redistribuir a relação grande em um join." },
+    { term: "Cache", category: "Performance", definition: "Persistência temporária de um resultado que será reutilizado; ocupa recursos e precisa ser materializada por uma action." },
+    { term: "Catalyst", category: "Spark SQL", definition: "Otimizador que analisa e transforma planos lógicos produzidos por SQL e DataFrames." },
+    { term: "Cluster", category: "Arquitetura", definition: "Conjunto de recursos de computação no qual aplicações Spark podem ser executadas." },
+    { term: "Column pruning", category: "Performance", definition: "Otimização que evita ler colunas não necessárias para o resultado." },
+    { term: "DAG", category: "Execução", definition: "Grafo de dependências das transformações usado pelo Spark para organizar o trabalho." },
+    { term: "DataFrame", category: "Fundamentos", definition: "Representação tabular, tipada, distribuível e imutável de um plano de transformação." },
+    { term: "Data skew", category: "Performance", definition: "Distribuição desigual em que poucas chaves concentram muitas linhas e atrasam algumas tasks." },
+    { term: "Driver", category: "Arquitetura", definition: "Processo que coordena a aplicação, cria planos e agenda trabalho." },
+    { term: "Executor", category: "Arquitetura", definition: "Processo que executa tasks e processa partições de dados." },
+    { term: "Idempotência", category: "Engenharia", definition: "Propriedade de produzir o mesmo estado final ao repetir uma operação com a mesma entrada." },
+    { term: "Job", category: "Execução", definition: "Conjunto de stages criado para atender a uma action." },
+    { term: "Lazy evaluation", category: "Execução", definition: "Estratégia de adiar o processamento até uma action para analisar e otimizar o plano completo." },
+    { term: "Parquet", category: "Armazenamento", definition: "Formato open source colunar, comprimido e tipado, eficiente para cargas analíticas." },
+    { term: "Partition", category: "Arquitetura", definition: "Fração dos dados processada por uma task; unidade básica do paralelismo." },
+    { term: "Predicate pushdown", category: "Performance", definition: "Aplicação de filtros junto à fonte para evitar a leitura de linhas desnecessárias." },
+    { term: "PySpark", category: "Fundamentos", definition: "API Python do Apache Spark." },
+    { term: "Schema", category: "Fundamentos", definition: "Contrato que define nomes, tipos e nulabilidade das colunas." },
+    { term: "Shuffle", category: "Performance", definition: "Redistribuição de registros entre partições, comum em joins, agregações e ordenações." },
+    { term: "SparkSession", category: "Fundamentos", definition: "Porta de entrada para criar DataFrames, ler e gravar dados e executar Spark SQL." },
+    { term: "Stage", category: "Execução", definition: "Grupo de tasks que pode ser executado sem atravessar uma fronteira de shuffle." },
+    { term: "Task", category: "Execução", definition: "Menor unidade de trabalho agendada, normalmente associada a uma partição." },
+    { term: "Temp view", category: "Spark SQL", definition: "Nome temporário associado a um DataFrame para consultá-lo com SQL durante a sessão." },
+    { term: "Transformation", category: "Execução", definition: "Operação que descreve um novo DataFrame sem necessariamente executar o processamento." },
+    { term: "Window function", category: "Spark SQL", definition: "Cálculo dentro de grupos lógicos que preserva as linhas, como ranking, lag e acumulados." }
   ];
 
   window.SPARK_MENTOR_DATA = {
@@ -1285,10 +2016,11 @@ GROUP BY 1;`,
     labOperations,
     glossary,
     routine: [
-      { label: "Retomada", minutes: 5 },
-      { label: "Microaula", minutes: 15 },
-      { label: "SQL ↔ PySpark", minutes: 15 },
-      { label: "Prática", minutes: 20 },
+      { label: "Retomada SQL", minutes: 5 },
+      { label: "Conceito Spark", minutes: 10 },
+      { label: "Solução SQL", minutes: 10 },
+      { label: "Tradução PySpark", minutes: 15 },
+      { label: "Prática avaliada", minutes: 15 },
       { label: "Quiz e registro", minutes: 5 }
     ]
   };

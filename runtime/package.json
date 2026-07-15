@@ -1,0 +1,8 @@
+{
+  "name": "mentor-semantic-runtime-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-isolation=none tests/client.test.mjs tests/fixtures.test.mjs"
+  }
+}

@@ -1,10 +1,12 @@
 {
   "name": "mentor-de-dados",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "Trilha gratuita e guiada para aprender Apache Spark, PySpark e Spark SQL.",
+  "description": "Trilha SQL-first com laboratório semântico para aprender Apache Spark, PySpark e Spark SQL.",
   "scripts": {
-    "test": "node tests/smoke.js"
+    "test": "node tests/smoke.js && npm run test:runtime",
+    "test:runtime": "node --test --test-isolation=none runtime/tests/client.test.mjs runtime/tests/fixtures.test.mjs",
+    "test:python": "python -m unittest discover -s runtime/tests -p \"test_*.py\" -v"
   },
   "license": "MIT"
 }

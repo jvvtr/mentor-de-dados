@@ -29,17 +29,17 @@ Sistemas de IA podem produzir conteúdo convincente e ainda assim cometer erros,
 - consulte as fontes primárias em [REFERENCES.md](REFERENCES.md) antes de decisões de produção;
 - reporte correções fundamentadas para que o material possa melhorar.
 
-## O editor não é um compilador
+## O laboratório é um compilador semântico educacional
 
-O laboratório no navegador armazena um rascunho e faz uma **verificação estrutural por padrões de texto**. Essa verificação não interpreta toda a sintaxe, não compila, não executa Apache Spark, não processa dados e não confirma resultados.
+No subconjunto declarado pela trilha, o laboratório analisa a sintaxe de Spark SQL ou a árvore do código PySpark, valida operações permitidas, compila a intenção para SQL, executa dados pequenos no navegador e compara o resultado com os testes do exercício. Essa execução usa Pyodide, SQLGlot, SQLFrame e DuckDB dentro de um Web Worker; não é uma simples busca por padrões de texto.
 
-Essa limitação é comunicada explicitamente na interface. Um runtime Python no navegador não seria equivalente ao runtime real do Apache Spark, que envolve JVM, planejamento de consultas e execução local ou distribuída. A execução prática acontece em um ambiente externo verdadeiro.
+O laboratório **não executa Apache Spark**: não inicia JVM, driver, executors ou cluster e não reproduz Catalyst, shuffle, Spark UI ou desempenho distribuído. Operações fora do subconjunto são recusadas ou apresentadas como simulações explícitas. Consulte a [arquitetura](docs/LABORATORIO_SEMANTICO.md) e a [matriz de compatibilidade](docs/COMPATIBILIDADE.md), e confirme comportamento de produção em um ambiente Spark real.
 
 ## Tutor local e privacidade
 
 Apesar de o projeto ter sido criado com IA, o app publicado **não consulta um modelo de IA**. O tutor é offline e responde a partir de conteúdo previamente definido.
 
-Nome, respostas, rascunhos, anotações e progresso ficam no `localStorage` do navegador. O aplicativo não possui backend, cadastro ou telemetria e não envia esses dados ao GitHub, a agentes de IA ou a terceiros. Links externos, ao serem abertos, passam a seguir as políticas do site de destino.
+Nome, respostas, rascunhos, anotações e progresso ficam no `localStorage` do navegador. O código dos exercícios é processado localmente pelo Web Worker. O aplicativo não possui backend, cadastro ou telemetria e não envia esses dados ao GitHub, a agentes de IA ou a terceiros. Na primeira execução, o navegador pode baixar os componentes open source fixados; links externos, ao serem abertos, passam a seguir as políticas do site de destino.
 
 ## Responsabilidade do estudante
 
@@ -49,4 +49,4 @@ O projeto não substitui formação oficial, revisão de um especialista ou test
 
 Este projeto é independente e não possui afiliação, patrocínio ou endosso da Apache Software Foundation, Databricks ou Microsoft.
 
-Apache Spark, Spark e o logotipo Apache Spark são marcas da Apache Software Foundation. Databricks, Power BI e demais nomes e marcas pertencem aos seus respectivos titulares. Os nomes são usados apenas de forma educacional e descritiva para identificar as tecnologias abordadas.
+Apache Spark, Spark e o logotipo Apache Spark são marcas da Apache Software Foundation. Databricks e demais nomes e marcas pertencem aos seus respectivos titulares. Os nomes são usados apenas de forma educacional e descritiva para identificar as tecnologias abordadas.

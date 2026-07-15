@@ -1,0 +1,4 @@
+duckdb==1.5.1
+pytz==2026.1.post1
+sqlframe==4.3.0
+sqlglot==30.8.0

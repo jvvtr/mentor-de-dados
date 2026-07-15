@@ -15,10 +15,12 @@ Obrigado por ajudar a tornar o Spark Mentor mais útil para quem está começand
 
 1. Mantenha o foco em estudantes iniciantes.
 2. Explique o conceito em linguagem simples antes de aprofundar.
-3. Quando possível, relacione o assunto a SQL, Power BI ou Databricks.
-4. Preserve o funcionamento offline e sem dependências.
-5. Teste as áreas Estudo de hoje, Trilha, Laboratório, Tutor, Glossário e Progresso.
+3. Quando possível, parta de um conceito SQL conhecido e mostre sua tradução para Spark SQL ou PySpark.
+4. Preserve a arquitetura estática, o carregamento sob demanda e as versões fixadas do runtime.
+5. Teste as áreas Estudo de hoje, Trilha, Laboratório Semântico, Primeiros passos, Tutor, Glossário e Progresso.
 6. Não inclua chaves, tokens, dados pessoais ou datasets restritos.
+
+Execute `npm test` antes de enviar o pull request. Alterações no núcleo Python também devem instalar `runtime/requirements-dev.txt` e passar em `npm run test:python`.
 
 ## Correções de conteúdo
 

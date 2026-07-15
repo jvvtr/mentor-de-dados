@@ -16,38 +16,24 @@
 
   const SESSION_STEPS = [
     { label: "Retomada", short: "Retomada", minutes: 5 },
-    { label: "Conceito", short: "Conceito", minutes: 15 },
-    { label: "SQL ↔ PySpark", short: "Comparar", minutes: 15 },
-    { label: "Prática", short: "Prática", minutes: 20 },
+    { label: "Conceito Spark", short: "Conceito", minutes: 10 },
+    { label: "SQL conhecido", short: "SQL", minutes: 10 },
+    { label: "Tradução PySpark", short: "PySpark", minutes: 15 },
+    { label: "Laboratório", short: "Prática", minutes: 15 },
     { label: "Quiz e registro", short: "Quiz", minutes: 5 }
   ];
 
-  const PRACTICE_RUBRICS = {
-    1: [["Cria ou obtém um DataFrame", ["spark.range", "createDataFrame"]], ["Exibe o resultado", ".show("]],
-    2: [["Cria o DataFrame", "createDataFrame"], ["Mostra as linhas", ".show("], ["Inspeciona o schema", ".printSchema("]],
-    3: [["Filtra os clientes", [".filter(", ".where("]], ["Seleciona as colunas", ".select("], ["Ordena o resultado", ".orderBy("]],
-    4: [["Trata valores nulos", [".fillna(", "coalesce("]], ["Cria uma nova coluna", ".withColumn("], ["Calcula o valor", "quantidade", "preco_unitario"]],
-    5: [["Aplica transformações", ".filter(", ".select("], ["Ordena os dados", ".orderBy("], ["Dispara uma action", ".count("]],
-    6: [["Usa o DataFrameReader", "spark.read"], ["Configura a leitura", ".option("], ["Lê o CSV", ".csv("], ["Seleciona colunas", ".select("]],
-    7: [["Registra uma view", "createOrReplaceTempView"], ["Executa Spark SQL", "spark.sql("]],
-    8: [["Cria o valor do pedido", ".withColumn("], ["Agrupa por status", ".groupBy("], ["Calcula as métricas", ".agg(", "sum("]],
-    9: [["Combina os DataFrames", ".join("], ["Mantém pedidos sem correspondência", "left"], ["Encontra nulos", ".isNull("]],
-    10: [["Define uma janela", "Window.partitionBy"], ["Ordena a janela", ".orderBy("], ["Cria o ranking", ["dense_rank", "row_number"]]],
-    11: [["Redistribui os dados", ".repartition("], ["Identifica a partição", "spark_partition_id"], ["Exibe a distribuição", ".groupBy(", ".show("]],
-    12: [["Filtra antes de agregar", ".filter("], ["Reduz as colunas", ".select("], ["Agrupa e agrega", ".groupBy(", ".agg("]],
-    13: [["Persiste o DataFrame", [".cache(", ".persist("]], ["Materializa o cache", ".count("], ["Libera os recursos", ".unpersist("]],
-    14: [["Importa ou usa broadcast", "broadcast("], ["Executa o join", ".join("], ["Inspeciona o plano", ".explain("]],
-    15: [["Monta a consulta", ".join("], ["Pede o plano formatado", ".explain(", "formatted"]],
-    16: [["Define a regra inválida", "regra_invalida"], ["Separa rejeitados", ".filter("], ["Mantém os válidos", "~regra_invalida"]],
-    17: [["Particiona pela chave", "Window.partitionBy"], ["Numera as versões", "row_number"], ["Mantém a posição 1", ".filter("], ["Remove a coluna auxiliar", ".drop("]],
-    18: [["Configura a escrita", ".write"], ["Usa Delta", ".format(", "delta"], ["Escolhe o modo", ".mode("], ["Grava uma tabela gerenciada", ".saveAsTable("]],
-    19: [["Filtra os aprovados", ".filter("], ["Cria o mês", "date_trunc"], ["Define a granularidade", ".groupBy("], ["Calcula as métricas", ".agg("]],
-    20: [["Explica Apache Spark", "spark"], ["Explica DataFrame", "dataframe"], ["Diferencia partition e shuffle", "partition", "shuffle"], ["Compara SQL e PySpark", "sql", "pyspark"]]
-  };
+  const REFLECTION_RUBRIC = [
+    ["Distingue Spark de um banco", "spark", "banco"],
+    ["Explica DataFrame e schema", "dataframe", "schema"],
+    ["Explica lazy evaluation", "lazy"],
+    ["Diferencia partition e shuffle", "partition", "shuffle"],
+    ["Compara SQL e PySpark", "sql", "pyspark"],
+    ["Define próximas práticas", "proxim", "pratic"]
+  ];
 
+  const SIMULATED_LESSONS = new Set([11, 13, 14, 15, 18]);
   const LESSON_RUNTIME_NOTES = {
-    13: { environment: "local", label: "PySpark local", note: "cache e persist não são suportados no compute serverless do Databricks Free Edition. Execute esta prática no ambiente local." },
-    18: { environment: "databricks", label: "Databricks recomendado", note: "Use saveAsTable em um schema do Unity Catalog. O starter local mínimo não inclui Delta Lake." },
     20: { environment: "reflection", label: "Reflexão escrita", note: "Esta atividade consolida conceitos em suas palavras e não precisa ser executada como código." }
   };
 
@@ -59,6 +45,10 @@
     checklist: {},
     quizAnswers: {},
     exerciseDrafts: {},
+    exerciseSqlDrafts: {},
+    practiceModes: {},
+    practiceResults: {},
+    practiceApprovals: {},
     practiceDone: {},
     lessonSteps: {},
     preferredEnvironment: "databricks",
@@ -78,6 +68,7 @@
   let lastFocusedElement = null;
   let activeLabOperation = DATA.labOperations[0].id;
   let pendingSaveTimer = null;
+  let practiceRunToken = 0;
 
   const els = {
     container: document.getElementById("view-container"),
@@ -198,7 +189,7 @@
             <div class="hero-meta">
               <span class="hero-chip"><strong>Semana ${lesson.week}</strong> de 4</span>
               <span class="hero-chip"><strong>60 minutos</strong> com pausas possíveis</span>
-              <span class="hero-chip ${completed ? "is-complete" : ""}">${completed ? "✓ Aula concluída" : `Etapa ${stepIndex + 1} de 5`}</span>
+              <span class="hero-chip ${completed ? "is-complete" : ""}">${completed ? "✓ Aula concluída" : `Etapa ${stepIndex + 1} de ${SESSION_STEPS.length}`}</span>
             </div>
           </div>
           <a class="technology-mark" href="https://spark.apache.org/" target="_blank" rel="noreferrer" aria-label="Conheça o Apache Spark no site oficial">
@@ -212,7 +203,7 @@
           <div class="session-control-head">
             <div>
               <span class="eyebrow">ROTEIRO DE HOJE</span>
-              <strong>${checks.filter(Boolean).length} de 5 blocos registrados</strong>
+              <strong>${checks.filter(Boolean).length} de ${SESSION_STEPS.length} blocos registrados</strong>
             </div>
             <span class="status-badge ${timer.remaining === 0 ? "done" : ""}" id="timer-status">${timer.remaining === 0 ? "Finalizada" : timer.running ? "Em andamento" : "Pronta"}</span>
           </div>
@@ -272,14 +263,14 @@
               <article class="recap-card"><span>OBJETIVO DE HOJE</span><p>${escapeHtml(lesson.objective)}</p></article>
               <article class="recap-card"><span>PONTO DE PARTIDA</span><p>${previous ? `Na aula anterior, você estudou “${escapeHtml(previous.title)}”. Tente explicar em uma frase antes de seguir.` : "Você já conhece SQL: use esse repertório para perceber que o Spark oferece outra forma de descrever transformações."}</p></article>
             </div>
-            <div class="warmup-prompt"><strong>Pergunta de aquecimento:</strong> onde uma transformação semelhante apareceria em um relatório do Power BI ou em uma consulta SQL?</div>
+            <div class="warmup-prompt"><strong>Pergunta de aquecimento:</strong> como você escreveria essa transformação usando apenas SQL?</div>
           </div>
           <aside class="environment-nudge ${state.environmentReady ? "ready" : ""}">
             <img src="assets/spark-data-scale-icon.svg" width="88" height="88" alt="" aria-hidden="true" />
             <span class="eyebrow">AMBIENTE DE PRÁTICA</span>
             <h4>${state.environmentReady ? "Ambiente marcado como pronto" : "Ainda não configurou?"}</h4>
-            <p>${state.environmentReady ? `Você escolheu ${state.preferredEnvironment === "databricks" ? "Databricks Free Edition" : "PySpark local"}. É possível trocar a qualquer momento.` : "Leva poucos minutos para começar pelo navegador ou preparar o PySpark no Windows."}</p>
-            <button class="secondary-button" data-open-setup>${state.environmentReady ? "Revisar configuração" : "Configurar ambiente"}</button>
+            <p>O laboratório educacional já roda nesta página. Quando quiser comparar com o Apache Spark completo, prepare o Databricks Free Edition ou o PySpark local.</p>
+            <button class="secondary-button" data-open-setup>Ver ambientes Spark reais</button>
           </aside>
         </div>`;
     }
@@ -289,12 +280,13 @@
         <div class="stage-main readable-stage">
           <div class="section-heading">
             <div><span class="eyebrow">ETAPA 2 · CONCEITO</span><h3>${escapeHtml(lesson.subtitle)}</h3><p>${escapeHtml(lesson.intro)}</p></div>
-            <span class="time-badge">15 min</span>
+            <span class="time-badge">10 min</span>
           </div>
           <div class="concept-list">
             ${lesson.concepts.map((concept, index) => `<article class="concept-item"><span class="concept-number">${String(index + 1).padStart(2, "0")}</span><div><strong>${escapeHtml(concept.title)}</strong><p>${escapeHtml(concept.text)}</p></div></article>`).join("")}
           </div>
           <div class="analogy-box"><strong>Conexão com o que você já conhece:</strong> ${escapeHtml(lesson.analogy)}</div>
+          ${renderLessonSources(lesson.sources)}
         </div>`;
     }
 
@@ -302,20 +294,32 @@
       return `
         <div class="stage-main">
           <div class="section-heading">
-            <div><span class="eyebrow">ETAPA 3 · TRADUÇÃO MENTAL</span><h3>SQL ↔ PySpark</h3><p>Compare as duas formas de expressar a mesma intenção. O Spark otimiza o plano; você escolhe a interface mais clara para o problema.</p></div>
-            <span class="time-badge">15 min</span>
+            <div><span class="eyebrow">ETAPA 3 · PONTO DE PARTIDA</span><h3>Leia primeiro como SQL</h3><p>Comece pela linguagem que você já conhece. Identifique tabelas, filtros, granularidade e resultado esperado antes de pensar em Python.</p></div>
+            <span class="time-badge">10 min</span>
           </div>
-          ${renderCodeTabs(lesson)}
-          <div class="comparison-tip"><strong>Faça agora:</strong> identifique no PySpark onde estão o <code>SELECT</code>, o <code>WHERE</code> e o <code>GROUP BY</code> da versão SQL.</div>
+          ${renderStudyCode("Spark SQL", lesson.sql, "study-sql")}
+          <div class="comparison-tip"><strong>Faça agora:</strong> descreva em voz alta a entrada, a granularidade de saída e como os valores <code>NULL</code> devem se comportar.</div>
         </div>`;
     }
 
-    if (stepIndex === 3) return renderPracticeWorkspace(lesson);
+    if (stepIndex === 3) {
+      return `
+        <div class="stage-main">
+          <div class="section-heading">
+            <div><span class="eyebrow">ETAPA 4 · TRADUÇÃO GUIADA</span><h3>Da intenção SQL para PySpark</h3><p>Agora localize no DataFrame API cada parte da consulta. O Python necessário é apresentado aos poucos e não é pré-requisito.</p></div>
+            <span class="time-badge">15 min</span>
+          </div>
+          ${renderStudyCode("PySpark", lesson.pyspark, "study-pyspark")}
+          <div class="comparison-tip"><strong>Mapa mental:</strong> <code>select()</code> projeta, <code>filter()</code> filtra, <code>groupBy()</code> define a granularidade e <code>agg()</code> calcula métricas.</div>
+        </div>`;
+    }
+
+    if (stepIndex === 4) return renderPracticeWorkspace(lesson);
 
     return `
       <div class="stage-main completion-stage">
         <div class="section-heading">
-          <div><span class="eyebrow">ETAPA 5 · QUIZ E REGISTRO</span><h3>${escapeHtml(lesson.quiz.question)}</h3><p>Você pode tentar novamente. O objetivo é compreender, não acertar de primeira.</p></div>
+          <div><span class="eyebrow">ETAPA 6 · QUIZ E REGISTRO</span><h3>${escapeHtml(lesson.quiz.question)}</h3><p>Você pode tentar novamente. O objetivo é compreender, não acertar de primeira.</p></div>
           <span class="time-badge">5 min</span>
         </div>
         <div class="quiz-options" id="quiz-options" role="group" aria-label="Alternativas do quiz">
@@ -333,27 +337,45 @@
   }
 
   function renderPracticeWorkspace(lesson) {
-    const draft = state.exerciseDrafts[lesson.id] ?? lesson.starter;
-    const lineCount = Math.max(1, draft.split("\n").length);
     const runtime = getLessonRuntime(lesson.id);
-    const draftMeta = getDraftMetadata(lesson);
     const isReflection = runtime.environment === "reflection";
-    const executionTarget = runtime.environment === "local" ? "seu ambiente PySpark local" : "um notebook do Databricks Free Edition";
+    const mode = isReflection ? "reflection" : (state.practiceModes[lesson.id] || lesson.practiceMode || "pyspark");
+    const starter = mode === "sql" ? (lesson.sqlStarter || lesson.sql) : lesson.starter;
+    const draftStore = mode === "sql" ? state.exerciseSqlDrafts : state.exerciseDrafts;
+    const draft = draftStore[lesson.id] ?? starter;
+    const lineCount = Math.max(1, draft.split("\n").length);
+    const draftMeta = getDraftMetadata(lesson, mode);
+    const currentFingerprint = codeFingerprint(draft);
+    reconcilePracticeForRender(lesson.id, mode, currentFingerprint);
+    const previousResult = state.practiceResults[practiceResultKey(lesson.id, mode)];
+    const matchingResult = previousResult?.sourceFingerprint === currentFingerprint ? previousResult : null;
+    const challenge = mode === "sql"
+      ? "Produza em Spark SQL o resultado esperado desta aula usando o código inicial e as tabelas fornecidas. A correção compara colunas, linhas e ordenação quando ela faz parte do contrato."
+      : lesson.exercise;
+    const hint = mode === "sql"
+      ? "Retome a solução SQL da etapa 3, observe o schema esperado e adapte a consulta às tabelas disponíveis no exercício."
+      : lesson.hint;
+    const solution = mode === "sql" ? lesson.sqlSolution : lesson.solution;
     return `
       <div class="stage-main practice-workspace">
         <div class="section-heading">
-          <div><span class="eyebrow">ETAPA 4 · PRÁTICA</span><h3>${isReflection ? "Reflexão final" : "Laboratório da aula"}</h3><p>${isReflection ? "Consolide os conceitos com suas palavras e revise a clareza das explicações." : "Planeje aqui, verifique a estrutura e execute em um ambiente Spark real."}</p></div>
-          <span class="time-badge">20 min</span>
+          <div><span class="eyebrow">ETAPA 5 · PRÁTICA AVALIADA</span><h3>${isReflection ? "Reflexão final" : "Laboratório de Semântica Spark"}</h3><p>${isReflection ? "Consolide os conceitos com suas palavras e revise a clareza das explicações." : "Execute um subconjunto educacional de Spark SQL ou PySpark e receba resultado, schema e diagnóstico sem sair da página."}</p></div>
+          <span class="time-badge">15 min</span>
         </div>
-        <div class="runtime-notice ${runtime.environment === "local" ? "local-only" : ""}">
+        <div class="runtime-notice ${runtime.simulated ? "local-only" : ""}">
           <div><span class="runtime-dot"></span><strong>${escapeHtml(runtime.label)}</strong><p>${escapeHtml(runtime.note)}</p></div>
-          <button class="ghost-button" data-open-setup>${isReflection ? "Revisar ambientes" : "Ver como executar"}</button>
+          <button class="ghost-button" data-open-setup>${isReflection ? "Revisar ambientes" : "Comparar com Spark real"}</button>
         </div>
-        <div class="exercise-prompt"><span>DESAFIO</span>${escapeHtml(lesson.exercise)}</div>
+        <div class="exercise-prompt"><span>DESAFIO</span>${escapeHtml(challenge)}</div>
+        ${renderAssessmentContract(lesson)}
         <div class="editor-shell">
           <header class="editor-header">
             <div><span class="editor-dot red"></span><span class="editor-dot amber"></span><span class="editor-dot green"></span><strong>${escapeHtml(draftMeta.filename)}</strong></div>
-            <span class="editor-mode">${escapeHtml(draftMeta.modeLabel)}</span>
+            ${isReflection ? `<span class="editor-mode">${escapeHtml(draftMeta.modeLabel)}</span>` : `
+              <div class="practice-language-tabs" role="tablist" aria-label="Linguagem da prática">
+                <button type="button" role="tab" data-practice-mode="pyspark" aria-selected="${mode === "pyspark"}" class="${mode === "pyspark" ? "active" : ""}">PySpark</button>
+                <button type="button" role="tab" data-practice-mode="sql" aria-selected="${mode === "sql"}" class="${mode === "sql" ? "active" : ""}">Spark SQL</button>
+              </div>`}
           </header>
           <div class="editor-body">
             <pre class="editor-line-numbers" id="editor-lines" aria-hidden="true">${Array.from({ length: lineCount }, (_, index) => index + 1).join("\n")}</pre>
@@ -362,27 +384,55 @@
           <footer class="editor-statusbar"><span id="draft-status">Salvo neste navegador</span><span id="code-stats">${lineCount} linhas · ${draft.length} caracteres</span></footer>
         </div>
         <div class="editor-toolbar" role="toolbar" aria-label="Ações do rascunho">
-          <button class="primary-button" id="validate-code">Verificar estrutura</button>
+          <button class="primary-button" id="validate-code">${isReflection ? "Revisar tópicos" : "▶ Executar e avaliar"}</button>
+          ${isReflection ? "" : '<button class="danger-button compact-button" id="cancel-code" hidden>Interromper</button>'}
           <button class="secondary-button" id="copy-draft">Copiar</button>
           <button class="secondary-button" id="download-draft">Baixar ${escapeHtml(draftMeta.extension)}</button>
           <button class="ghost-button" id="reset-draft">Restaurar início</button>
         </div>
-        <div class="validation-result" id="validation-result" role="status" aria-live="polite" hidden></div>
+        <div class="validation-result semantic-result" id="validation-result" role="status" aria-live="polite" ${matchingResult ? "" : "hidden"}>${matchingResult ? renderSemanticResultMarkup(matchingResult) : ""}</div>
         <div class="execution-lane">
-          <div><strong>${isReflection ? "Registrar sua reflexão" : "Executar de verdade"}</strong><p>${isReflection ? "Complete os cinco tópicos com suas palavras. A verificação procura os conceitos esperados, mas a qualidade da explicação depende da sua revisão." : `Copie o código para ${executionTarget}. A verificação acima analisa elementos esperados, mas não processa dados.`}</p></div>
-          <button class="secondary-button" data-open-setup>${isReflection ? "Revisar ambientes" : "Abrir primeiros passos →"}</button>
+          <div><strong>${isReflection ? "Registrar sua reflexão" : "O que este laboratório executa"}</strong><p>${isReflection ? "Complete os tópicos com suas palavras. A qualidade da explicação depende da sua revisão." : "Python roda em WebAssembly; SQLFrame e SQLGlot analisam o código; DuckDB executa os dados de treino. É um subconjunto educacional local — não é o Apache Spark nem um cluster distribuído."}</p></div>
+          <button class="secondary-button" data-open-setup>${isReflection ? "Revisar ambientes" : "Abrir ambiente Spark real →"}</button>
         </div>
         <div class="practice-support">
           <button class="ghost-button" id="show-hint" aria-expanded="false" aria-controls="hint-panel">Mostrar dica</button>
           <button class="ghost-button" id="show-solution" aria-expanded="false" aria-controls="solution-panel">Ver uma solução possível</button>
         </div>
-        <div class="hint-panel" id="hint-panel" hidden>${escapeHtml(lesson.hint)}</div>
-        <div class="solution-panel" id="solution-panel" hidden><div class="solution-head"><strong>Uma solução possível</strong><button class="code-copy" data-copy-target="solution-code">Copiar</button></div><pre><code id="solution-code">${escapeHtml(lesson.solution)}</code></pre></div>
+        <div class="hint-panel" id="hint-panel" hidden>${escapeHtml(hint)}</div>
+        <div class="solution-panel" id="solution-panel" hidden><div class="solution-head"><strong>Uma solução possível em ${mode === "sql" ? "Spark SQL" : isReflection ? "texto" : "PySpark"}</strong><button class="code-copy" data-copy-target="solution-code">Copiar</button></div><pre><code id="solution-code">${escapeHtml(solution)}</code></pre></div>
         <label class="practice-confirmation">
           <input type="checkbox" id="practice-done" ${state.practiceDone[lesson.id] ? "checked" : ""} />
-          <span><strong>Confirmação honesta</strong> Executei em um ambiente Spark real ou revisei minha tentativa com a verificação estrutural.</span>
+          <span><strong>Prática concluída</strong> O laboratório aprovou minha solução ou eu conferi o resultado em um ambiente Apache Spark real.</span>
         </label>
       </div>`;
+  }
+
+  function renderStudyCode(label, code, id) {
+    return `<div class="study-code-card"><header><span>${escapeHtml(label)}</span><button class="code-copy" data-copy-target="${id}">Copiar</button></header><pre><code id="${id}">${escapeHtml(code)}</code></pre></div>`;
+  }
+
+  function renderLessonSources(sources) {
+    if (!Array.isArray(sources) || !sources.length) return "";
+    return `<aside class="lesson-sources"><div><span class="eyebrow">FONTES DESTA AULA</span><strong>Leia na origem</strong></div><div class="lesson-source-links">${sources.map((source) => `<a href="${escapeAttr(source.url)}" target="_blank" rel="noreferrer"><span>${escapeHtml(source.type || "referência")}</span>${escapeHtml(source.label)} ↗</a>`).join("")}</div></aside>`;
+  }
+
+  function renderAssessmentContract(lesson) {
+    const assessment = lesson.assessment || {};
+    const manualChecks = [
+      ...(Array.isArray(assessment.edgeCases) ? assessment.edgeCases : []),
+      ...(Array.isArray(assessment.planChecks) ? assessment.planChecks : [])
+    ];
+    if (!assessment.expectedSchema && !manualChecks.length) return "";
+    return `
+      <details class="assessment-contract">
+        <summary>Ver contrato e verificações adicionais</summary>
+        <div class="assessment-contract-body">
+          ${assessment.expectedSchema ? `<p><strong>Schema de referência:</strong> ${escapeHtml(assessment.expectedSchema)}</p>` : ""}
+          <p><strong>Correção automática:</strong> sintaxe suportada, colunas, linhas da fixture e ordenação declarada.</p>
+          ${manualChecks.length ? `<div><strong>Confirme também no Spark real:</strong><ul>${manualChecks.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>` : ""}
+        </div>
+      </details>`;
   }
 
   function renderCodeTabs(lesson) {
@@ -437,9 +487,14 @@
   }
 
   function bindPracticeEvents(lesson, draft) {
+    const isReflection = getLessonRuntime(lesson.id).environment === "reflection";
+    const mode = isReflection ? "reflection" : (state.practiceModes[lesson.id] || lesson.practiceMode || "pyspark");
+    const starter = mode === "sql" ? (lesson.sqlStarter || lesson.sql) : lesson.starter;
+    const draftStore = mode === "sql" ? state.exerciseSqlDrafts : state.exerciseDrafts;
     syncEditorChrome(draft);
     draft.addEventListener("input", () => {
-      state.exerciseDrafts[lesson.id] = draft.value;
+      draftStore[lesson.id] = draft.value;
+      invalidatePracticeForCodeChange(lesson.id, mode, draft.value);
       syncEditorChrome(draft);
       const status = document.getElementById("draft-status");
       if (status) status.textContent = "Salvando…";
@@ -459,24 +514,47 @@
     });
 
     document.getElementById("practice-done")?.addEventListener("change", (event) => {
-      state.practiceDone[lesson.id] = event.target.checked;
+      const approval = getPracticeApproval(lesson.id);
+      if (event.target.checked) approval.manual = true;
+      else state.practiceApprovals[lesson.id] = {};
+      syncPracticeDone(lesson.id);
       markActivity(0);
       saveState();
     });
-    document.getElementById("validate-code")?.addEventListener("click", () => showPracticeValidation(lesson, draft.value));
+    document.querySelectorAll("[data-practice-mode]").forEach((button) => {
+      button.addEventListener("click", () => {
+        draftStore[lesson.id] = draft.value;
+        state.practiceModes[lesson.id] = button.dataset.practiceMode;
+        saveState();
+        renderToday();
+        window.setTimeout(() => document.getElementById("exercise-draft")?.focus(), 0);
+      });
+    });
+    document.getElementById("validate-code")?.addEventListener("click", () => {
+      if (isReflection) showPracticeValidation(lesson, draft.value);
+      else runSemanticPractice(lesson, draft.value, mode);
+    });
+    document.getElementById("cancel-code")?.addEventListener("click", () => {
+      practiceRunToken += 1;
+      window.SemanticLab?.reset();
+      setPracticeRunning(false);
+      renderRuntimeFailure("Execução interrompida. O runtime será reiniciado na próxima tentativa.", "E-CANCEL-001");
+    });
     document.getElementById("copy-draft")?.addEventListener("click", async (event) => {
       const ok = await copyText(draft.value);
       event.currentTarget.textContent = ok ? "Copiado ✓" : "Selecione e copie";
       if (ok) toast("Rascunho copiado.");
       window.setTimeout(() => { event.currentTarget.textContent = "Copiar"; }, 1600);
     });
-    document.getElementById("download-draft")?.addEventListener("click", () => downloadDraft(lesson, draft.value));
+    document.getElementById("download-draft")?.addEventListener("click", () => downloadDraft(lesson, draft.value, mode));
     document.getElementById("reset-draft")?.addEventListener("click", () => {
       if (!window.confirm("Restaurar o código inicial desta aula? Seu rascunho atual será substituído.")) return;
-      draft.value = lesson.starter;
-      state.exerciseDrafts[lesson.id] = lesson.starter;
-      state.practiceDone[lesson.id] = false;
-      document.getElementById("practice-done").checked = false;
+      draft.value = starter;
+      draftStore[lesson.id] = starter;
+      delete state.practiceResults[practiceResultKey(lesson.id, mode)];
+      delete getPracticeApproval(lesson.id)[mode];
+      syncPracticeDone(lesson.id);
+      document.getElementById("practice-done").checked = Boolean(state.practiceDone[lesson.id]);
       document.getElementById("validation-result").hidden = true;
       syncEditorChrome(draft);
       saveState();
@@ -508,7 +586,7 @@
 
   function showPracticeValidation(lesson, code) {
     state.exerciseDrafts[lesson.id] = code;
-    const rubric = PRACTICE_RUBRICS[lesson.id] || [];
+    const rubric = lesson.practiceMode === "reflection" ? REFLECTION_RUBRIC : [];
     const normalizedCode = normalize(code);
     const changed = code.trim() !== lesson.starter.trim();
     const hasPlaceholders = /(?:\.\.\.|_{4,}|#\s*complete\s+aqui)/i.test(code);
@@ -523,44 +601,270 @@
       { label: "Alterou o rascunho inicial", passed: changed },
       { label: "Removeu os placeholders", passed: !hasPlaceholders }
     );
-    results.push(...getLessonSpecificChecks(lesson.id, code));
     const passed = results.filter((item) => item.passed).length;
     const enough = results.length > 0 && passed === results.length;
     const panel = document.getElementById("validation-result");
     panel.hidden = false;
     panel.className = `validation-result ${enough ? "success" : "needs-work"}`;
     panel.innerHTML = `
-      <div class="validation-head"><div><span>VERIFICAÇÃO ESTRUTURAL</span><strong>${enough ? "Boa base para executar" : "Revise alguns elementos"}</strong></div><b>${passed}/${results.length}</b></div>
+      <div class="validation-head"><div><span>REVISÃO DA REFLEXÃO</span><strong>${enough ? "Todos os tópicos aparecem" : "Revise alguns tópicos"}</strong></div><b>${passed}/${results.length}</b></div>
       <ul>${results.map((item) => `<li class="${item.passed ? "passed" : ""}"><span>${item.passed ? "✓" : "○"}</span>${escapeHtml(item.label)}</li>`).join("")}</ul>
-      <p>Esta análise procura padrões no texto; ela não compila, não executa o código e não substitui um teste no Spark.</p>`;
+      <p>Esta etapa revisa apenas a presença dos conceitos. Releia a clareza e a precisão das suas próprias explicações.</p>`;
     saveState();
   }
 
-  function getLessonSpecificChecks(lessonId, code) {
-    const normalizedCode = normalize(code);
-    if (lessonId === 1) {
-      return [
-        { label: "Explica o papel do driver", passed: normalizedCode.includes("driver") },
-        { label: "Explica o papel dos executors", passed: normalizedCode.includes("executor") }
-      ];
+  async function runSemanticPractice(lesson, code, mode) {
+    const panel = document.getElementById("validation-result");
+    const token = ++practiceRunToken;
+    const draftStore = mode === "sql" ? state.exerciseSqlDrafts : state.exerciseDrafts;
+    const expected = mode === "sql" ? (lesson.sqlExpected || lesson.expected) : lesson.expected;
+    const fingerprint = codeFingerprint(code);
+    draftStore[lesson.id] = code;
+    delete state.practiceResults[practiceResultKey(lesson.id, mode)];
+    delete getPracticeApproval(lesson.id)[mode];
+    syncPracticeDone(lesson.id);
+    saveState();
+
+    if (!window.SemanticLab?.run) {
+      renderRuntimeFailure("O módulo do laboratório não foi carregado. Atualize a página ou use um ambiente Spark real.", "E-RUNTIME-001");
+      return;
     }
-    if (lessonId === 2) {
-      const tuples = code.match(/\([^()\n]+,[^()\n]+,[^()\n]+\)/g) || [];
-      return [{ label: "Inclui pelo menos três produtos", passed: tuples.length >= 3 }];
+
+    panel.hidden = false;
+    panel.className = "validation-result semantic-result is-running";
+    panel.innerHTML = renderRuntimeProgress("Preparando o laboratório local…", "O primeiro uso baixa o runtime Python e pode levar alguns segundos.");
+    setPracticeRunning(true);
+
+    try {
+      const result = await window.SemanticLab.run({
+        v: 1,
+        lessonId: lesson.id,
+        mode,
+        code,
+        tables: lesson.tables || [],
+        fixtures: buildLessonFixtures(lesson),
+        expected: expected || null,
+        resultVariable: lesson.assessment?.entrypoint || "resultado",
+        allowDDL: lesson.id === 18,
+        maxRows: 100,
+        simulated: SIMULATED_LESSONS.has(lesson.id)
+      }, {
+        onProgress(progress) {
+          if (token !== practiceRunToken) return;
+          const label = typeof progress === "string" ? progress : (progress?.label || progress?.message || "Carregando componentes…");
+          const detail = typeof progress === "object" ? (progress.detail || "Tudo acontece em um Worker para manter a página responsiva.") : "Tudo acontece em um Worker para manter a página responsiva.";
+          panel.innerHTML = renderRuntimeProgress(label, detail);
+        }
+      });
+      if (token !== practiceRunToken) return;
+
+      const safeResult = gradeSemanticResponse(JSON.parse(JSON.stringify(result || {})), expected);
+      safeResult.practiceMode = mode;
+      safeResult.sourceFingerprint = fingerprint;
+      state.practiceResults[practiceResultKey(lesson.id, mode)] = safeResult;
+      const passed = Boolean(safeResult.grade?.passed ?? safeResult.passed);
+      if (passed) {
+        getPracticeApproval(lesson.id)[mode] = fingerprint;
+        syncPracticeDone(lesson.id);
+        const checkbox = document.getElementById("practice-done");
+        if (checkbox) checkbox.checked = true;
+        markActivity(0);
+      }
+      saveState();
+      panel.className = `validation-result semantic-result ${passed ? "success" : "needs-work"}`;
+      panel.innerHTML = renderSemanticResultMarkup(safeResult);
+    } catch (error) {
+      if (token !== practiceRunToken) return;
+      renderRuntimeFailure(error?.message || "Não foi possível concluir a execução local.", error?.code || "E-RUNTIME-002");
+    } finally {
+      if (token === practiceRunToken) setPracticeRunning(false);
     }
-    if (lessonId === 5) {
-      const transformations = normalizedCode.match(/transformation/g) || [];
-      const actions = normalizedCode.match(/\baction\b/g) || [];
-      return [
-        { label: "Marca as três transformations", passed: transformations.length >= 3 },
-        { label: "Marca a action", passed: actions.length >= 1 }
-      ];
-    }
-    return [];
   }
 
-  function downloadDraft(lesson, code) {
-    const meta = getDraftMetadata(lesson);
+  function setPracticeRunning(running) {
+    const runButton = document.getElementById("validate-code");
+    const cancelButton = document.getElementById("cancel-code");
+    if (runButton) {
+      runButton.disabled = running;
+      runButton.textContent = running ? "Inicializando runtime…" : "▶ Executar e avaliar";
+    }
+    if (cancelButton) cancelButton.hidden = !running;
+  }
+
+  function buildLessonFixtures(lesson) {
+    const tables = {};
+    for (const table of lesson.tables || []) {
+      if (!table?.name || !Array.isArray(table.columns)) continue;
+      const rows = Array.isArray(table.rows) ? table.rows : [];
+      const schema = {};
+      table.columns.forEach((column, index) => {
+        schema[column] = inferFixtureType(rows.map((row) => row?.[index]));
+      });
+      tables[table.name] = { schema, rows };
+    }
+    const virtualFiles = {};
+    if (tables.pedidos_arquivo) {
+      virtualFiles["/dados/pedidos.csv"] = "pedidos_arquivo";
+      virtualFiles["pedidos.csv"] = "pedidos_arquivo";
+    }
+    return { version: `lesson-${lesson.id}-visible-v1`, tables, virtualFiles };
+  }
+
+  function inferFixtureType(values) {
+    const nonNull = values.filter((value) => value !== null && value !== undefined);
+    if (!nonNull.length) return "VARCHAR";
+    if (nonNull.every((value) => typeof value === "boolean")) return "BOOLEAN";
+    if (nonNull.every((value) => typeof value === "number" && Number.isInteger(value))) return "BIGINT";
+    if (nonNull.every((value) => typeof value === "number")) return "DOUBLE";
+    return "VARCHAR";
+  }
+
+  function gradeSemanticResponse(response, expected) {
+    if (response.grade || response.status !== "ok" || !expected || !Array.isArray(expected.columns)) return response;
+    const actualColumns = Array.isArray(response.result?.columns)
+      ? response.result.columns.map((column) => typeof column === "string" ? column : column.name)
+      : [];
+    const expectedColumns = expected.columns;
+    const columnsPassed = actualColumns.length === expectedColumns.length && actualColumns.every((column, index) => column === expectedColumns[index]);
+    const actualRows = Array.isArray(response.result?.rows) ? response.result.rows : [];
+    const expectedRows = Array.isArray(expected.rows) ? expected.rows : [];
+    const normalizedActual = actualRows.map(normalizeComparableRow);
+    const normalizedExpected = expectedRows.map(normalizeComparableRow);
+    const comparableActual = expected.ordered ? normalizedActual : [...normalizedActual].sort();
+    const comparableExpected = expected.ordered ? normalizedExpected : [...normalizedExpected].sort();
+    const rowsPassed = comparableActual.length === comparableExpected.length && comparableActual.every((row, index) => row === comparableExpected[index]);
+    const checks = [
+      { label: "Schema de saída esperado", passed: columnsPassed },
+      { label: expected.ordered ? "Linhas e ordenação esperadas" : "Conjunto de linhas esperado", passed: rowsPassed }
+    ];
+    const passed = columnsPassed && rowsPassed;
+    response.grade = { passed, score: checks.filter((check) => check.passed).length * 50, checks };
+    return response;
+  }
+
+  function normalizeComparableRow(row) {
+    const values = Array.isArray(row) ? row : Object.values(row || {});
+    return JSON.stringify(values.map((value) => {
+      if (value === null || value === undefined) return null;
+      if (typeof value === "number") return Number(value.toFixed(8));
+      if (typeof value === "string" && /^-?\d+(?:\.\d+)?$/.test(value)) return Number(Number(value).toFixed(8));
+      if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}/.test(value)) return value.replace("T", " ").replace(/(?:\.0+)?(?:Z|[+-]\d{2}:?\d{2})?$/, "");
+      return value;
+    }));
+  }
+
+  function practiceResultKey(lessonId, mode) {
+    return `${lessonId}:${mode}`;
+  }
+
+  function codeFingerprint(code) {
+    const value = String(code ?? "");
+    let hash = 2166136261;
+    for (let index = 0; index < value.length; index += 1) {
+      hash ^= value.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return `${value.length}:${(hash >>> 0).toString(16)}`;
+  }
+
+  function getPracticeApproval(lessonId) {
+    const current = state.practiceApprovals[lessonId];
+    if (!current || typeof current !== "object" || Array.isArray(current)) {
+      state.practiceApprovals[lessonId] = {};
+    }
+    return state.practiceApprovals[lessonId];
+  }
+
+  function syncPracticeDone(lessonId) {
+    const approval = getPracticeApproval(lessonId);
+    state.practiceDone[lessonId] = Boolean(
+      approval.manual || approval.pyspark || approval.sql || approval.reflection
+    );
+    const checkbox = document.getElementById("practice-done");
+    if (checkbox) checkbox.checked = state.practiceDone[lessonId];
+  }
+
+  function invalidatePracticeForCodeChange(lessonId, mode, code) {
+    const fingerprint = codeFingerprint(code);
+    const key = practiceResultKey(lessonId, mode);
+    const result = state.practiceResults[key];
+    const approval = getPracticeApproval(lessonId);
+    if (result?.sourceFingerprint && result.sourceFingerprint !== fingerprint) {
+      delete state.practiceResults[key];
+      const panel = document.getElementById("validation-result");
+      if (panel) {
+        panel.hidden = true;
+        panel.innerHTML = "";
+      }
+    }
+    if (approval[mode] && approval[mode] !== fingerprint) {
+      delete approval[mode];
+      syncPracticeDone(lessonId);
+      const checkbox = document.getElementById("practice-done");
+      if (checkbox) checkbox.checked = Boolean(state.practiceDone[lessonId]);
+    }
+  }
+
+  function reconcilePracticeForRender(lessonId, mode, fingerprint) {
+    const key = practiceResultKey(lessonId, mode);
+    const result = state.practiceResults[key];
+    const approval = getPracticeApproval(lessonId);
+    let changed = false;
+    if (result?.sourceFingerprint && result.sourceFingerprint !== fingerprint) {
+      delete state.practiceResults[key];
+      changed = true;
+    }
+    if (approval[mode] && approval[mode] !== fingerprint) {
+      delete approval[mode];
+      syncPracticeDone(lessonId);
+      changed = true;
+    }
+    if (changed) saveState();
+  }
+
+  function renderRuntimeProgress(label, detail) {
+    return `<div class="runtime-progress"><span class="runtime-spinner" aria-hidden="true"></span><div><strong>${escapeHtml(label)}</strong><p>${escapeHtml(detail)}</p></div></div>`;
+  }
+
+  function renderRuntimeFailure(message, code) {
+    const panel = document.getElementById("validation-result");
+    if (!panel) return;
+    panel.hidden = false;
+    panel.className = "validation-result semantic-result needs-work";
+    panel.innerHTML = `<div class="validation-head"><div><span>${escapeHtml(code)}</span><strong>O laboratório não concluiu a execução</strong></div><b>!</b></div><p>${escapeHtml(message)}</p><p>Seu rascunho continua salvo. Tente novamente ou confira no ambiente Spark real em Primeiros passos.</p>`;
+  }
+
+  function renderSemanticResultMarkup(response) {
+    const grade = response.grade || {};
+    const passed = Boolean(grade.passed ?? response.passed);
+    const score = Number.isFinite(Number(grade.score)) ? Number(grade.score) : (passed ? 100 : 0);
+    const diagnostics = Array.isArray(response.diagnostics) ? response.diagnostics : [];
+    const checks = Array.isArray(grade.checks) ? grade.checks : [];
+    const result = response.result || {};
+    const columns = Array.isArray(result.columns) ? result.columns.map((column) => typeof column === "string" ? column : column.name) : [];
+    const rows = Array.isArray(result.rows) ? result.rows.slice(0, 100) : [];
+    const warnings = [
+      ...(Array.isArray(response.warnings) ? response.warnings : []),
+      ...(Array.isArray(response.plan?.warnings) ? response.plan.warnings : [])
+    ];
+    const compiledSql = response.compiledSql || response.sql || response.plan?.sql || "";
+    const statusTitle = diagnostics.length
+      ? "O código precisa de ajustes"
+      : passed ? "Resultado aprovado" : "Executou, mas o resultado ainda difere do esperado";
+
+    return `
+      <div class="validation-head"><div><span>LABORATÓRIO SEMÂNTICO · ${escapeHtml(response.runtime?.engine || "PYTHON + DUCKDB WASM")}</span><strong>${statusTitle}</strong></div><b>${score}%</b></div>
+      ${diagnostics.length ? `<div class="diagnostic-list">${diagnostics.map((item) => `
+        <article class="diagnostic-item"><div><code>${escapeHtml(item.code || "E-CODE")}</code><strong>${escapeHtml(item.message || item.explanation || String(item))}</strong></div>${item.hint ? `<p>Dica: ${escapeHtml(item.hint)}</p>` : ""}${item.line ? `<small>Linha ${escapeHtml(item.line)}${item.column ? `, coluna ${escapeHtml(item.column)}` : ""}</small>` : ""}</article>`).join("")}</div>` : ""}
+      ${checks.length ? `<ul class="semantic-checks">${checks.map((check) => `<li class="${check.passed ? "passed" : ""}"><span>${check.passed ? "✓" : "○"}</span>${escapeHtml(check.label || check.message || "Verificação")}</li>`).join("")}</ul>` : ""}
+      ${columns.length ? `<div class="result-table-wrap"><div class="result-table-head"><strong>Resultado</strong><span>${escapeHtml(result.rowCount ?? rows.length)} linha(s)${result.truncated ? " · visualização limitada" : ""}</span></div><table><thead><tr>${columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr></thead><tbody>${rows.length ? rows.map((row) => `<tr>${columns.map((_, index) => `<td>${row?.[index] === null || row?.[index] === undefined ? '<span class="null-value">NULL</span>' : escapeHtml(row[index])}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${columns.length}">Nenhuma linha retornada.</td></tr>`}</tbody></table></div>` : ""}
+      ${warnings.length ? `<div class="semantic-warnings">${warnings.map((warning) => `<p><strong>Atenção:</strong> ${escapeHtml(typeof warning === "string" ? warning : warning.message)}</p>`).join("")}</div>` : ""}
+      ${compiledSql ? `<details class="compiled-plan"><summary>Ver SQL compilado pelo laboratório</summary><pre><code>${escapeHtml(compiledSql)}</code></pre></details>` : ""}
+      <p class="semantic-disclaimer">Execução educacional local. O motor reproduz um subconjunto semântico para treino; não executa Apache Spark, JVM, executors ou cluster distribuído.</p>`;
+  }
+
+  function downloadDraft(lesson, code, mode = "pyspark") {
+    const meta = getDraftMetadata(lesson, mode);
     const blob = new Blob([code], { type: `${meta.mime};charset=utf-8` });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -573,17 +877,23 @@
     toast(`Arquivo ${meta.extension} preparado.`);
   }
 
-  function getDraftMetadata(lesson) {
-    if (lesson.id === 20) {
+  function getDraftMetadata(lesson, mode = "pyspark") {
+    if (mode === "reflection" || lesson.id === 20) {
       return { filename: "aula_20_reflexao.md", extension: ".md", mime: "text/markdown", modeLabel: "REFLEXÃO LOCAL · NÃO É CÓDIGO EXECUTÁVEL" };
     }
-    return { filename: `aula_${String(lesson.id).padStart(2, "0")}.py`, extension: ".py", mime: "text/x-python", modeLabel: "RASCUNHO LOCAL · NÃO EXECUTA SPARK" };
+    if (mode === "sql") {
+      return { filename: `aula_${String(lesson.id).padStart(2, "0")}.sql`, extension: ".sql", mime: "text/sql", modeLabel: "SPARK SQL · SUBCONJUNTO EDUCACIONAL" };
+    }
+    return { filename: `aula_${String(lesson.id).padStart(2, "0")}.py`, extension: ".py", mime: "text/x-python", modeLabel: "PYSPARK · SUBCONJUNTO EDUCACIONAL" };
   }
 
   function goToLessonStep(lessonId, target, current) {
     const next = Math.max(0, Math.min(SESSION_STEPS.length - 1, target));
     const editor = document.getElementById("exercise-draft");
-    if (editor && current === 3) state.exerciseDrafts[lessonId] = editor.value;
+    if (editor && current === SESSION_STEPS.length - 2) {
+      const mode = state.practiceModes[lessonId] || "pyspark";
+      (mode === "sql" ? state.exerciseSqlDrafts : state.exerciseDrafts)[lessonId] = editor.value;
+    }
     if (next > current) getChecklist(lessonId)[current] = true;
     state.lessonSteps[lessonId] = next;
     markActivity(0);
@@ -599,19 +909,13 @@
 
   function getLessonRuntime(lessonId) {
     if (LESSON_RUNTIME_NOTES[lessonId]) return LESSON_RUNTIME_NOTES[lessonId];
-    if (state.preferredEnvironment === "local") {
-      return { environment: "local", label: "PySpark local", note: "Execute com o ambiente virtual e o JDK 17 configurados conforme os Primeiros passos." };
+    if (SIMULATED_LESSONS.has(lessonId)) {
+      return { environment: "browser", simulated: true, label: "Execução local + comportamento distribuído simulado", note: "O resultado relacional é executado no navegador; repartição, cache, broadcast, plano físico ou escrita distribuída são apenas marcadores pedagógicos." };
     }
-    return { environment: "databricks", label: "Databricks Free Edition", note: "Cole em um notebook Python conectado ao compute Serverless; a variável spark já estará disponível." };
+    return { environment: "browser", simulated: false, label: "Execução local no navegador", note: "Pyodide, SQLFrame, SQLGlot e DuckDB validam sintaxe, colunas, schema e resultado em dados pequenos." };
   }
 
   function openSetupForLesson(lesson) {
-    const required = LESSON_RUNTIME_NOTES[lesson.id]?.environment;
-    if (["databricks", "local"].includes(required) && state.preferredEnvironment !== required) {
-      state.preferredEnvironment = required;
-      state.environmentReady = false;
-      saveState();
-    }
     setView("setup");
   }
 
@@ -630,25 +934,25 @@
       <div class="setup-page view-stack route-enter">
         <section class="card setup-hero">
           <div>
-            <span class="eyebrow">SPARK REAL, SEM ATALHOS ENGANOSOS</span>
-            <h2>Escolha onde executar seus exercícios</h2>
-            <p>Este app organiza o estudo e valida a estrutura do rascunho. A execução acontece no Databricks Free Edition ou numa instalação local do PySpark.</p>
-            <div class="setup-version"><span>Conteúdo verificado em 15/07/2026</span><strong>PySpark 4.2.0 · Python 3.10+ · Java 17 recomendado</strong></div>
+            <span class="eyebrow">LABORATÓRIO EMBUTIDO + SPARK REAL</span>
+            <h2>Comece aqui e avance para um runtime completo</h2>
+            <p>Os exercícios centrais rodam no navegador. Para recursos distribuídos, integração com arquivos reais e fidelidade total, use também Databricks Free Edition ou uma instalação local do PySpark.</p>
+            <div class="setup-version"><span>Stack open source do laboratório</span><strong>Pyodide 314.0.2 · SQLFrame 4.3 · SQLGlot 30.8 · DuckDB 1.5.1</strong></div>
           </div>
           <img src="assets/apache-spark-logo-trademark.png" width="280" height="141" alt="Apache Spark" />
         </section>
 
         <section class="card execution-explainer">
           <div class="execution-flow" aria-label="Fluxo da prática">
-            <div><span>1</span><strong>Mentor de Dados</strong><small>explica e prepara</small></div><b aria-hidden="true">→</b>
-            <div><span>2</span><strong>Databricks ou PC</strong><small>executa o código</small></div><b aria-hidden="true">→</b>
-            <div><span>3</span><strong>Apache Spark</strong><small>processa os dados</small></div>
+            <div><span>1</span><strong>Seu código</strong><small>Spark SQL ou PySpark</small></div><b aria-hidden="true">→</b>
+            <div><span>2</span><strong>Worker local</strong><small>analisa e executa</small></div><b aria-hidden="true">→</b>
+            <div><span>3</span><strong>Feedback</strong><small>schema, linhas e testes</small></div>
           </div>
-          <p><strong>Por que não há um “compilador Spark” embutido?</strong> Um executor Python leve no navegador não reproduz a JVM, o planejamento e o runtime distribuído do Spark. Mantemos o app rápido e ensinamos a usar um ambiente verdadeiro.</p>
+          <p><strong>Limite importante:</strong> o laboratório executa um subconjunto semântico compatível sobre dados pequenos. Ele ensina DataFrames e Spark SQL, mas não reproduz JVM, executors, shuffle físico ou um cluster Apache Spark. A interface sempre sinaliza quando um comportamento é simulado.</p>
         </section>
 
         <section class="setup-choice" aria-labelledby="environment-title">
-          <div class="section-heading"><div><span class="eyebrow">PASSO 1</span><h3 id="environment-title">Como você quer começar?</h3></div></div>
+          <div class="section-heading"><div><span class="eyebrow">SPARK COMPLETO · OPCIONAL NO INÍCIO</span><h3 id="environment-title">Onde você quer validar com Apache Spark real?</h3><p>Escolha uma opção quando estiver pronto; o laboratório embutido não exige instalação.</p></div></div>
           <div class="environment-cards">
             <button class="card environment-card ${environment === "databricks" ? "selected" : ""}" data-environment="databricks" aria-pressed="${environment === "databricks"}">
               <span class="recommendation-badge">RECOMENDADO</span><span class="environment-icon" aria-hidden="true">☁</span><strong>Databricks Free Edition</strong><span class="environment-description">Funciona no navegador, sem instalar Java ou Python. Ideal para seguir a trilha.</span><span class="environment-meta">Gratuito para aprendizado · sujeito a cotas</span>
@@ -796,7 +1100,7 @@
           <div>
             <span class="eyebrow">PONTE PARA QUEM JÁ SABE SQL</span>
             <h2>A mesma lógica em duas linguagens</h2>
-            <p>Use esta referência para traduzir padrões conhecidos. Os exemplos são copiáveis para o Databricks, mas não são executados neste app.</p>
+            <p>Use esta referência para traduzir padrões conhecidos. Copie os exemplos e execute-os na etapa de prática avaliada ou em um ambiente Spark real.</p>
           </div>
         </section>
 
@@ -843,7 +1147,7 @@
     if (!state.chat.length) {
       state.chat = [{
         role: "tutor",
-        text: `Olá, ${getFirstName()}! Sou o tutor local do Mentor de Dados. Posso explicar os conceitos centrais da trilha e sempre tento relacioná-los a SQL, Power BI e Databricks.\n\nExperimente uma das perguntas rápidas ou escreva algo como “o que é shuffle?”.`
+        text: `Olá, ${getFirstName()}! Sou o tutor local do Mentor de Dados. Posso explicar os conceitos centrais da trilha partindo do SQL que você já conhece.\n\nExperimente uma das perguntas rápidas ou escreva algo como “o que é shuffle?”.`
       }];
       saveState();
     }
@@ -920,7 +1224,7 @@
       return "Executors são os processos trabalhadores do Spark. Eles executam tasks, processam partições e podem guardar blocos em cache. O driver coordena; os executors processam. Um cluster pode ter vários executors trabalhando em paralelo.";
     }
     if (q.includes("lazy") || q.includes("preguicos") || q.includes("action") || q.includes("transformation")) {
-      return "Lazy evaluation significa que o Spark adia o processamento. select, filter e join são transformations: montam o plano. show, count e write são actions: exigem um resultado e disparam a execução.\n\nIsso lembra o Power Query: você encadeia etapas e o mecanismo avalia o fluxo quando ocorre a atualização.";
+      return "Lazy evaluation significa que o Spark adia o processamento. select, filter e join são transformations: montam o plano. show, count e write são actions: exigem um resultado e disparam a execução.\n\nEm termos de SQL, pense que você primeiro descreve uma consulta; o motor só precisa materializar as linhas quando algum consumidor pede o resultado.";
     }
     if (q.includes("dataframe")) {
       return "Um DataFrame é uma coleção distribuída de dados em linhas e colunas, com schema. Ele lembra uma tabela SQL, mas é imutável: filter ou select devolvem outro DataFrame. Também é lazy — representa um plano até que uma action peça um resultado.";
@@ -938,10 +1242,7 @@
       return "Cache ajuda quando um resultado caro será reutilizado várias vezes. Ele não é gratuito: ocupa memória e precisa ser materializado por uma action. Depois do uso, chame unpersist(). Aplicar cache em todas as etapas normalmente piora o uso de recursos.";
     }
     if (q.includes("databricks") || q.includes("pratic")) {
-      return "No Databricks, crie um notebook e comece com um DataFrame pequeno. Para cada aula: execute o exemplo, altere uma condição, tente o exercício sem olhar a solução e finalize com explain(). Você pode copiar os exemplos da área SQL ↔ PySpark deste app. O app orienta, mas não executa Spark localmente.";
-    }
-    if (q.includes("power bi")) {
-      return "A conexão mais útil é esta: Spark prepara e transforma grandes volumes antes do consumo; Power BI modela, calcula e apresenta. Uma tabela Gold no Databricks costuma ser desenhada para ser simples e eficiente para o Power BI.";
+      return "Comece pelo laboratório embutido com DataFrames pequenos. Depois, abra um notebook no Databricks ou o kit local para comparar o mesmo código com o Apache Spark completo. Em cada aula: execute, altere uma condição, tente sem olhar a solução e então consulte o plano com explain().";
     }
     if (q.includes("spark") || q.includes("o que e")) {
       return "Apache Spark é uma engine de processamento de dados. Ela cria um plano, divide os dados em partições e distribui tasks aos executors. Não é um banco de dados nem uma linguagem: pode ler diversas fontes e oferece interfaces como Spark SQL e PySpark.";
@@ -1128,7 +1429,9 @@
       return;
     }
 
-    const draft = (state.exerciseDrafts[lesson.id] || document.getElementById("exercise-draft")?.value || "").trim();
+    const mode = state.practiceModes[lesson.id] || lesson.practiceMode || "pyspark";
+    const storedDraft = mode === "sql" ? state.exerciseSqlDrafts[lesson.id] : state.exerciseDrafts[lesson.id];
+    const draft = (storedDraft || document.getElementById("exercise-draft")?.value || "").trim();
     const practiced = Boolean(state.practiceDone[lesson.id]);
     const quizAttempted = state.quizAnswers[lesson.id]?.selected !== undefined;
     if (!draft || !practiced || !quizAttempted) {
@@ -1136,10 +1439,10 @@
       return;
     }
 
-    state.exerciseDrafts[lesson.id] = draft;
+    (mode === "sql" ? state.exerciseSqlDrafts : state.exerciseDrafts)[lesson.id] = draft;
     state.completedLessons.push(lesson.id);
     state.completedLessons = [...new Set(state.completedLessons)].sort((a, b) => a - b);
-    state.checklist[lesson.id] = [true, true, true, true, true];
+    state.checklist[lesson.id] = SESSION_STEPS.map(() => true);
     markActivity(0);
     if (lesson.id < DATA.lessons.length) state.currentLesson = lesson.id + 1;
     pauseTimer(false);
@@ -1528,7 +1831,34 @@
     safe.checklist = input.checklist && typeof input.checklist === "object" ? input.checklist : {};
     safe.quizAnswers = input.quizAnswers && typeof input.quizAnswers === "object" ? input.quizAnswers : {};
     safe.exerciseDrafts = input.exerciseDrafts && typeof input.exerciseDrafts === "object" ? input.exerciseDrafts : {};
+    safe.exerciseSqlDrafts = input.exerciseSqlDrafts && typeof input.exerciseSqlDrafts === "object" ? input.exerciseSqlDrafts : {};
+    safe.practiceModes = input.practiceModes && typeof input.practiceModes === "object" ? input.practiceModes : {};
+    Object.keys(safe.practiceModes).forEach((lessonId) => {
+      if (!["pyspark", "sql", "reflection"].includes(safe.practiceModes[lessonId])) delete safe.practiceModes[lessonId];
+    });
+    safe.practiceResults = input.practiceResults && typeof input.practiceResults === "object" ? input.practiceResults : {};
     safe.practiceDone = input.practiceDone && typeof input.practiceDone === "object" ? input.practiceDone : {};
+    safe.practiceApprovals = input.practiceApprovals && typeof input.practiceApprovals === "object" ? input.practiceApprovals : {};
+    Object.keys(safe.practiceApprovals).forEach((lessonId) => {
+      const approval = safe.practiceApprovals[lessonId];
+      if (!approval || typeof approval !== "object" || Array.isArray(approval)) {
+        delete safe.practiceApprovals[lessonId];
+        return;
+      }
+      safe.practiceApprovals[lessonId] = {
+        manual: Boolean(approval.manual),
+        ...Object.fromEntries(
+          ["pyspark", "sql", "reflection"]
+            .filter((mode) => typeof approval[mode] === "string")
+            .map((mode) => [mode, approval[mode]])
+        )
+      };
+    });
+    Object.keys(safe.practiceDone).forEach((lessonId) => {
+      if (safe.practiceDone[lessonId] && !safe.practiceApprovals[lessonId]) {
+        safe.practiceApprovals[lessonId] = { manual: true };
+      }
+    });
     safe.lessonSteps = input.lessonSteps && typeof input.lessonSteps === "object" ? input.lessonSteps : {};
     Object.keys(safe.lessonSteps).forEach((lessonId) => {
       const step = Number(safe.lessonSteps[lessonId]);
